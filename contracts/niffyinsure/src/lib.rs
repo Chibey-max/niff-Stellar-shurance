@@ -2,6 +2,7 @@
 
 mod claim;
 mod policy;
+mod premium_pure;
 #[allow(dead_code)] // used by policy.rs once feat/policy-lifecycle lands
 mod premium;
 mod storage;
@@ -9,7 +10,7 @@ mod token;
 pub mod types;
 pub mod validate;
 
-use soroban_sdk::{contract, contractimpl, Address, Env};
+use soroban_sdk::{contract, contractimpl, Address, Env, String, Vec};
 
 #[contract]
 pub struct NiffyInsure;
@@ -67,6 +68,29 @@ impl NiffyInsure {
     /// Read-only helper for monitoring state in tests / ops tooling.
     pub fn has_policy(env: Env, holder: Address, policy_id: u32) -> bool {
         storage::has_policy(&env, &holder, policy_id)
+    }
+
+    /// File a claim against a policy, initiating Processing status and voting window.
+    pub fn file_claim(
+        env: Env,
+        holder: Address,
+        policy_id: u32,
+        amount: i128,
+        details: String,
+        image_urls: Vec<String>,
+        vote_duration_ledgers: u32,
+    ) -> Result<u64, claim::Error> {
+        claim::file_claim(env, holder, policy_id, amount, details, image_urls, vote_duration_ledgers)
+    }
+
+    /// Cast vote on claim by eligible voter (active policyholder).
+    pub fn vote_on_claim(env: Env, voter: Address, claim_id: u64, vote: types::VoteOption) -> Result<(), claim::Error> {
+        claim::vote_on_claim(env, voter, claim_id, vote)
+    }
+
+    /// Finalize claim after voting deadline: approve (payout) if majority approve votes, else reject.
+    pub fn finalize_claim(env: Env, claim_id: u64) -> Result<(), claim::Error> {
+        claim::finalize_claim(env, claim_id)
     }
 
     // ── Policy domain ────────────────────────────────────────────────────

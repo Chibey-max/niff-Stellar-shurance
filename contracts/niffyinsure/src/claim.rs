@@ -1,4 +1,4 @@
-use soroban_sdk::{contracterror, Env, Address, String, Vec, Symbol, token};
+use soroban_sdk::{contracterror, Env, Address, String, Vec, Symbol};
 use crate::storage as st;
 use crate::types::*;
 #[contracterror]
@@ -80,10 +80,6 @@ pub fn vote_on_claim(env: Env, voter: Address, claim_id: u64, vote: VoteOption) 
     if claim.status != ClaimStatus::Processing {
         return Err(Error::ClaimNotProcessing);
     }
-    let current = env.ledger().sequence();
-    if current < claim.voting_deadline_ledger {
-        return Err(Error::VotingDeadlineNotPassed);
-    }
     // Stub voter eligibility
     if !validate::check_voter_eligible_stub(&env, &voter) {
         return Err(Error::InvalidVote);
@@ -92,7 +88,7 @@ pub fn vote_on_claim(env: Env, voter: Address, claim_id: u64, vote: VoteOption) 
         return Err(Error::AlreadyVoted);
     }
     st::record_vote(&env, &claim_id, &voter, &vote);
-    let mut updated = claim.clone();
+    let mut updated = claim;
     match vote {
         VoteOption::Approve => updated.approve_votes += 1,
         VoteOption::Reject => updated.reject_votes += 1,
@@ -108,26 +104,25 @@ pub fn finalize_claim(env: Env, claim_id: u64) -> Result<(), Error> {
         return Ok(()); // idempotent
     }
     let current_ledger = env.ledger().sequence();
+    if current_ledger <= claim.voting_deadline_ledger {
+        return Err(Error::VotingDeadlineNotPassed);
+    }
     let eligible = st::get_voters_len(&env);
     if eligible == 0 {
         return Err(Error::NoActiveVoters);
     }
-    let votes_cast = claim.approve_votes + claim.reject_votes; // using tallies as proxy
-    let all_voted = votes_cast as u32 == eligible;
-    let deadline_passed = current_ledger > claim.voting_deadline_ledger;
-    if !all_voted && !deadline_passed {
-        return Err(Error::VotingDeadlineNotPassed);
-    }
     let prev_status = claim.status.clone();
     if claim.approve_votes * 2 > eligible {
         claim.status = ClaimStatus::Approved;
-        let token = st::get_token(&env);
- token::Client::new(&env, &token).transfer(&claim.claimant, &claim.claimant, &claim.amount); // stub from claimant
+        // TODO: Payout from treasury (feat/admin); stub for now
+        // let token = st::get_token(&env);
+        // token::Client::new(&env, &token).transfer(&env.invoker(), &claim.claimant, &claim.amount);
     } else {
         claim.status = ClaimStatus::Rejected;
     }
     st::put_claim(&env, &claim_id, &claim);
-    let status_event = (symbol_short!("status_changed"), claim_id);
+    let status_topic = Symbol::short("status");
+    let status_event = (status_topic, claim_id);
     env.events().publish(status_event, (prev_status, claim.status.clone(), claim.approve_votes, claim.reject_votes, current_ledger));
     Ok(())
 }
