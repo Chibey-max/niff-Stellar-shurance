@@ -57,12 +57,12 @@ export function RouteError({ error, reset, area, segment }: Props) {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <Button type="button" variant="default" size="sm" onClick={() => reset()}>
           <RefreshCw className="h-4 w-4 mr-2" aria-hidden />
-          Try again
+          Retry
         </Button>
         <Button type="button" variant="outline" size="sm" asChild>
           <Link href="/dashboard">
             <Home className="h-4 w-4 mr-2" aria-hidden />
-            Go to dashboard
+            Go to Dashboard
           </Link>
         </Button>
       </div>
