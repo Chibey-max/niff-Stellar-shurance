@@ -43,7 +43,7 @@ describeIfRedis("claim-events queue end-to-end", () => {
   });
 
   afterEach(async () => {
-    await worker.close();
+    await worker.close().catch(() => { /* already closed */ });
     // Drain the queue between tests using the dedicated connection
     const q = new Queue("claim-events", { connection: testConn });
     await q.obliterate({ force: true });
@@ -78,6 +78,9 @@ describeIfRedis("claim-events queue end-to-end", () => {
   });
 
   test("failed job is retried", async () => {
+    // Close the worker started in beforeEach so it doesn't steal the job
+    await worker.close();
+
     let attempts = 0;
     const failingWorker = startClaimEventsWorker(async () => {
       attempts++;
