@@ -18,6 +18,7 @@ import {
 import { useWallet } from '@/hooks/use-wallet';
 import { useDraftPersistence } from '@/hooks/use-draft-persistence';
 import { ClaimAPI } from '@/lib/api/claim';
+import { trackClaimFiled } from '@/lib/analytics';
 
 import { AmountStep } from './steps/AmountStep';
 import { EvidenceStep } from './steps/EvidenceStep';
@@ -148,7 +149,9 @@ export function ClaimWizard({ policyId, maxCoverage, policyCoverage }: ClaimWiza
 
       setTxStatus('Claim submitted successfully.');
       setIsSuccess(true);
-      
+
+      trackClaimFiled();
+
       // EXTREMELY IMPORTANT: Clear draft on success (Issue #229)
       clearDraft();
 

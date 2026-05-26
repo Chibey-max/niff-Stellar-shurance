@@ -26,6 +26,7 @@ import { RampButton } from '@/components/ramp/ramp-button'
 import { getConfig } from '@/config/env'
 import { PolicyAPI, PolicyError, getPolicyErrorMessage, getExplorerUrl } from '@/lib/api/policy'
 
+import { trackPolicyInitiated } from '@/lib/analytics'
 import { PolicyInitiationSchema, PolicyInitiationData, Transaction, Policy } from '@/lib/schemas/policy'
 import type { QuoteResponse } from '@/lib/schemas/quote'
 import { formatTokenAmount } from '@/lib/formatTokenAmount'
@@ -182,6 +183,7 @@ export function PolicyInitiation({ quoteId: propQuoteId }: PolicyInitiationProps
       const confirmedPolicy = await PolicyAPI.pollPolicyStatus(result.policyId)
       setPolicy(confirmedPolicy)
       setTxStatus(`Policy ${confirmedPolicy.policyId} is now active.`)
+      trackPolicyInitiated()
       toast({
         title: 'Policy Created!',
         description: `Your policy ${confirmedPolicy.policyId} is now active`,

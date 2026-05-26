@@ -15,6 +15,7 @@ import { generatePremium, QuoteError, getQuoteErrorMessage, QUOTE_TTL_SECONDS } 
 import { QuoteFormSchema, type QuoteFormData, type QuoteResponse } from '@/lib/schemas/quote'
 import { formatTokenAmount } from '@/lib/formatTokenAmount'
 import { useWallet } from '@/hooks/use-wallet'
+import { trackQuoteSubmitted } from '@/lib/analytics'
 
 const STEPS = ['Policy Type', 'Region & Age', 'Coverage', 'Result'] as const
 type Step = 0 | 1 | 2 | 3
@@ -196,6 +197,11 @@ export function QuoteForm() {
       setQuote(result)
       setQuoteExpiredAt(Date.now() + QUOTE_TTL_SECONDS * 1000)
       setStep(3)
+      trackQuoteSubmitted({
+        policyType: data.policy_type,
+        region: data.region,
+        coverageTier: data.coverage_tier,
+      })
     } catch (err) {
       const msg = err instanceof QuoteError ? getQuoteErrorMessage(err) : 'Failed to generate quote'
       toast({ title: 'Quote Error', description: msg, variant: 'destructive' })
