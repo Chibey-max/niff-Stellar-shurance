@@ -1,8 +1,10 @@
 const mockQueueAdd = jest.fn().mockResolvedValue({ id: 'queued-job-id' });
+const mockQueueGetJob = jest.fn();
 
 jest.mock('bullmq', () => ({
   Queue: jest.fn().mockImplementation(() => ({
     add: (...args: unknown[]) => mockQueueAdd(...args),
+    getJob: (...args: unknown[]) => mockQueueGetJob(...args),
   })),
 }));
 
@@ -57,6 +59,98 @@ describe('AdminService', () => {
           create: expect.objectContaining({ lastProcessedLedger: 0 }),
         }),
       );
+    });
+  });
+
+  describe('enqueueBackfill', () => {
+    function makeSvc() {
+      const prisma = { $transaction: jest.fn() };
+      return new AdminService(prisma as never, { refreshFlags: jest.fn() } as never);
+    }
+
+    it('enqueues one job when range fits in a single batch', async () => {
+      let callCount = 0;
+      mockQueueAdd.mockImplementation(() => Promise.resolve({ id: `job-${++callCount}` }));
+
+      const svc = makeSvc();
+      const jobs = await svc.enqueueBackfill(100, 149, 'testnet', 50);
+
+      expect(jobs).toHaveLength(1);
+      expect(jobs[0]).toMatchObject({ fromLedger: 100, toLedger: 149, batchSize: 50 });
+      expect(mockQueueAdd).toHaveBeenCalledWith(
+        'backfill',
+        { fromLedger: 100, toLedger: 149, network: 'testnet', batchSize: 50 },
+        expect.objectContaining({ jobId: expect.stringMatching(/^backfill-testnet-100-149-/) }),
+      );
+    });
+
+    it('splits range into multiple batches', async () => {
+      let callCount = 0;
+      mockQueueAdd.mockImplementation(() => Promise.resolve({ id: `job-${++callCount}` }));
+
+      const svc = makeSvc();
+      const jobs = await svc.enqueueBackfill(100, 249, 'testnet', 50);
+
+      expect(jobs).toHaveLength(3);
+      expect(jobs[0]).toMatchObject({ fromLedger: 100, toLedger: 149 });
+      expect(jobs[1]).toMatchObject({ fromLedger: 150, toLedger: 199 });
+      expect(jobs[2]).toMatchObject({ fromLedger: 200, toLedger: 249 });
+    });
+
+    it('handles partial last batch correctly', async () => {
+      let callCount = 0;
+      mockQueueAdd.mockImplementation(() => Promise.resolve({ id: `job-${++callCount}` }));
+
+      const svc = makeSvc();
+      const jobs = await svc.enqueueBackfill(100, 160, 'testnet', 50);
+
+      expect(jobs).toHaveLength(2);
+      expect(jobs[0]).toMatchObject({ fromLedger: 100, toLedger: 149 });
+      expect(jobs[1]).toMatchObject({ fromLedger: 150, toLedger: 160 });
+    });
+
+    it('does NOT mutate the ledger cursor', async () => {
+      mockQueueAdd.mockResolvedValue({ id: 'job-1' });
+      const prisma = { $transaction: jest.fn() };
+      const svc = new AdminService(prisma as never, { refreshFlags: jest.fn() } as never);
+      await svc.enqueueBackfill(100, 149, 'testnet', 50);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getBackfillJob', () => {
+    function makeSvc() {
+      const prisma = { $transaction: jest.fn() };
+      return new AdminService(prisma as never, { refreshFlags: jest.fn() } as never);
+    }
+
+    it('returns null when job not found', async () => {
+      mockQueueGetJob.mockResolvedValue(null);
+      const svc = makeSvc();
+      const result = await svc.getBackfillJob('nonexistent');
+      expect(result).toBeNull();
+    });
+
+    it('returns job state details when found', async () => {
+      const mockJob = {
+        id: 'backfill-testnet-100-149-123-0',
+        data: { fromLedger: 100, toLedger: 149, network: 'testnet', batchSize: 50 },
+        progress: 0,
+        failedReason: undefined,
+        finishedOn: undefined,
+        processedOn: undefined,
+        getState: jest.fn().mockResolvedValue('completed'),
+      };
+      mockQueueGetJob.mockResolvedValue(mockJob);
+
+      const svc = makeSvc();
+      const result = await svc.getBackfillJob('backfill-testnet-100-149-123-0');
+
+      expect(result).toMatchObject({
+        jobId: 'backfill-testnet-100-149-123-0',
+        state: 'completed',
+        data: { fromLedger: 100, toLedger: 149 },
+      });
     });
   });
 });

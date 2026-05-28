@@ -15,6 +15,8 @@ import { SolvencyMonitoringService } from '../maintenance/solvency-monitoring.se
 
 const mockAdminService = {
   enqueueReindex: jest.fn(),
+  enqueueBackfill: jest.fn(),
+  getBackfillJob: jest.fn(),
   setFeatureFlag: jest.fn(),
   getFeatureFlags: jest.fn(),
 };
@@ -60,7 +62,7 @@ describe('AdminController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AdminController],
       providers: [
-        { provide: AdminService, useValue: mockAdminService },
+      { provide: AdminService, useValue: mockAdminService },
         { provide: AdminPoliciesService, useValue: mockAdminPoliciesService },
         { provide: AuditService, useValue: mockAuditService },
         { provide: ConfigService, useValue: mockConfigService },
@@ -116,6 +118,88 @@ describe('AdminController', () => {
       mockAdminService.enqueueReindex.mockResolvedValue('job-456');
       await controller.reindex({ fromLedger: 100, network: 'public' }, adminReq());
       expect(mockAdminService.enqueueReindex).toHaveBeenCalledWith(100, 'public');
+    });
+  });
+
+  // ── POST /admin/indexer/backfill ─────────────────────────────────────────
+
+  describe('POST /admin/indexer/backfill', () => {
+    it('enqueues batched jobs and writes audit row', async () => {
+      const mockJobs = [
+        { jobId: 'backfill-testnet-100-149-ts-0', fromLedger: 100, toLedger: 149, batchSize: 50 },
+        { jobId: 'backfill-testnet-150-199-ts-1', fromLedger: 150, toLedger: 199, batchSize: 50 },
+      ];
+      mockAdminService.enqueueBackfill.mockResolvedValue(mockJobs);
+
+      const result = await controller.enqueueBackfill(
+        { fromLedger: 100, toLedger: 199 },
+        adminReq(),
+      );
+
+      expect(result).toMatchObject({
+        fromLedger: 100,
+        toLedger: 199,
+        network: 'testnet',
+        batchSize: 50,
+        status: 'queued',
+        jobs: mockJobs,
+      });
+      expect(mockAdminService.enqueueBackfill).toHaveBeenCalledWith(100, 199, 'testnet', 50);
+      expect(mockAuditService.write).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actor: 'GADMIN',
+          action: 'indexer_backfill',
+          payload: expect.objectContaining({ fromLedger: 100, toLedger: 199, network: 'testnet' }),
+        }),
+      );
+    });
+
+    it('rejects when fromLedger > toLedger', async () => {
+      await expect(
+        controller.enqueueBackfill({ fromLedger: 200, toLedger: 100 }, adminReq()),
+      ).rejects.toThrow('fromLedger must be <= toLedger');
+      expect(mockAdminService.enqueueBackfill).not.toHaveBeenCalled();
+    });
+
+    it('rejects when range exceeds MAX_BACKFILL_LEDGER_RANGE', async () => {
+      // mockConfigService returns undefined for unknown keys, so maxRange defaults to 100_000
+      // We need a range > 100_000
+      await expect(
+        controller.enqueueBackfill({ fromLedger: 1, toLedger: 200_001 }, adminReq()),
+      ).rejects.toThrow(/exceeds MAX_BACKFILL_LEDGER_RANGE/);
+      expect(mockAdminService.enqueueBackfill).not.toHaveBeenCalled();
+    });
+
+    it('uses explicit network when provided', async () => {
+      mockAdminService.enqueueBackfill.mockResolvedValue([]);
+      await controller.enqueueBackfill(
+        { fromLedger: 100, toLedger: 149, network: 'mainnet' },
+        adminReq(),
+      );
+      expect(mockAdminService.enqueueBackfill).toHaveBeenCalledWith(100, 149, 'mainnet', 50);
+    });
+  });
+
+  // ── GET /admin/indexer/backfill/:jobId ───────────────────────────────────
+
+  describe('GET /admin/indexer/backfill/:jobId', () => {
+    it('returns job status when found', async () => {
+      const mockJob = {
+        jobId: 'backfill-testnet-100-149-ts-0',
+        state: 'completed',
+        data: { fromLedger: 100, toLedger: 149, network: 'testnet', batchSize: 50 },
+        progress: 0,
+      };
+      mockAdminService.getBackfillJob.mockResolvedValue(mockJob);
+
+      const result = await controller.getBackfillJob('backfill-testnet-100-149-ts-0');
+      expect(result).toEqual(mockJob);
+      expect(mockAdminService.getBackfillJob).toHaveBeenCalledWith('backfill-testnet-100-149-ts-0');
+    });
+
+    it('throws NotFoundException when job not found', async () => {
+      mockAdminService.getBackfillJob.mockResolvedValue(null);
+      await expect(controller.getBackfillJob('nonexistent')).rejects.toThrow('not found');
     });
   });
 
@@ -293,7 +377,7 @@ describe('Admin Role Guard Enforcement', () => {
     module = await Test.createTestingModule({
       controllers: [AdminController],
       providers: [
-        { provide: AdminService, useValue: mockAdminService },
+      { provide: AdminService, useValue: mockAdminService },
         { provide: AdminPoliciesService, useValue: mockAdminPoliciesService },
         { provide: AuditService, useValue: mockAuditService },
         { provide: ConfigService, useValue: mockConfigService },

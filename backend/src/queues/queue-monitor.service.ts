@@ -11,6 +11,7 @@ export const QUEUE_CONFIGS = [
   { name: 'notifications', label: 'notifications' },
   { name: 'claim-events', label: 'claim-events' },
   { name: 'reindex', label: 'reindex' },
+  { name: 'backfill', label: 'backfill' },
 ] as const;
 
 @Injectable()

@@ -26,6 +26,7 @@ import { AdminService } from './admin.service';
 import { AdminPoliciesService } from './admin-policies.service';
 import { AuditService } from './audit.service';
 import { ReindexDto } from './dto/reindex.dto';
+import { BackfillDto } from './dto/backfill.dto';
 import { AuditQueryDto } from './dto/audit-query.dto';
 import { FeatureFlagDto } from './dto/feature-flag.dto';
 import { SetRateLimitDto, EnableOverrideDto } from './dto/rate-limit.dto';
@@ -86,6 +87,63 @@ export class AdminController {
       ipAddress: req.ip,
     });
     return { jobId, fromLedger: dto.fromLedger, network, status: 'queued' };
+  }
+
+  /**
+   * POST /admin/indexer/backfill
+   *
+   * Validates the ledger range, splits it into batches, and enqueues one
+   * BullMQ backfill job per batch. Rejects ranges that exceed
+   * MAX_BACKFILL_LEDGER_RANGE before any jobs are created.
+   *
+   * Idempotent: the underlying indexer uses upsert logic so replaying
+   * already-processed ledgers does not create duplicate records.
+   */
+  @Post('indexer/backfill')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Enqueue backfill jobs for a ledger range' })
+  async enqueueBackfill(@Body() dto: BackfillDto, @Req() req: AdminRequest) {
+    if (dto.fromLedger > dto.toLedger) {
+      throw new BadRequestException('fromLedger must be <= toLedger');
+    }
+    const maxRange = this.configService.get<number>('MAX_BACKFILL_LEDGER_RANGE', 100_000);
+    const range = dto.toLedger - dto.fromLedger + 1;
+    if (range > maxRange) {
+      throw new BadRequestException(
+        `Ledger range ${range} exceeds MAX_BACKFILL_LEDGER_RANGE (${maxRange})`,
+      );
+    }
+    const network = dto.network ?? this.configService.get<string>('STELLAR_NETWORK', 'testnet');
+    const batchSize = this.configService.get<number>('INDEXER_BATCH_SIZE', 50);
+    const jobs = await this.adminService.enqueueBackfill(
+      dto.fromLedger,
+      dto.toLedger,
+      network,
+      batchSize,
+    );
+    const actor = req.user?.walletAddress ?? 'unknown';
+    await this.auditService.write({
+      actor,
+      action: 'indexer_backfill',
+      payload: { fromLedger: dto.fromLedger, toLedger: dto.toLedger, network, jobCount: jobs.length },
+      ipAddress: req.ip,
+    });
+    return { jobs, fromLedger: dto.fromLedger, toLedger: dto.toLedger, network, batchSize, status: 'queued' };
+  }
+
+  /**
+   * GET /admin/indexer/backfill/:jobId
+   *
+   * Returns the current BullMQ state of a backfill job.
+   */
+  @Get('indexer/backfill/:jobId')
+  @ApiOperation({ summary: 'Get backfill job status' })
+  async getBackfillJob(@Param('jobId') jobId: string) {
+    const job = await this.adminService.getBackfillJob(jobId);
+    if (!job) {
+      throw new NotFoundException(`Backfill job ${jobId} not found`);
+    }
+    return job;
   }
 
   /**
