@@ -55,8 +55,47 @@ export class AdminService {
       { fromLedger, network },
       { jobId: `reindex-${network}-${fromLedger}-${Date.now()}` },
     );
-    this.logger.log(`Reindex job enqueued: ${job.id} network=${network} fromLedger=${fromLedger}`);
-    return job.id!;
+    const jobId = job.id!;
+
+    // Seed progress row so status is queryable immediately after enqueue.
+    await this.prisma.reindexProgress.upsert({
+      where: { jobId },
+      create: { jobId, network, startLedger: fromLedger, status: 'running' },
+      update: { status: 'running', startLedger: fromLedger },
+    });
+
+    this.logger.log(`Reindex job enqueued: ${jobId} network=${network} fromLedger=${fromLedger}`);
+    return jobId;
+  }
+
+  async getReindexStatus(network: string): Promise<{
+    jobId: string;
+    network: string;
+    currentLedger: number;
+    targetLedger: number;
+    percentage: number;
+    status: string;
+    startedAt: Date;
+  } | null> {
+    const row = await this.prisma.reindexProgress.findFirst({
+      where: { network },
+      orderBy: { startTime: 'desc' },
+    });
+    if (!row) return null;
+
+    const range = row.targetLedger - row.startLedger;
+    const done = row.currentLedger - row.startLedger;
+    const percentage = range > 0 ? Math.min(100, Math.round((done / range) * 100)) : 100;
+
+    return {
+      jobId: row.jobId,
+      network: row.network,
+      currentLedger: row.currentLedger,
+      targetLedger: row.targetLedger,
+      percentage,
+      status: row.status,
+      startedAt: row.startTime,
+    };
   }
 
   /**

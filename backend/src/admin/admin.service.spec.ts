@@ -23,9 +23,11 @@ describe('AdminService', () => {
   describe('enqueueReindex', () => {
     it('sets last_processed_ledger to fromLedger-1 and enqueues with network', async () => {
       const upsert = jest.fn();
+      const progressUpsert = jest.fn();
       const prisma = {
         $transaction: jest.fn(async (fn: (t: { ledgerCursor: { upsert: jest.Mock } }) => Promise<void>) =>
           fn({ ledgerCursor: { upsert } })),
+        reindexProgress: { upsert: progressUpsert },
       };
 
       const svc = new AdminService(prisma as never, { refreshFlags: jest.fn() } as never);
@@ -44,6 +46,12 @@ describe('AdminService', () => {
           jobId: expect.stringMatching(/^reindex-testnet-500-/),
         }),
       );
+      expect(progressUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { jobId: 'queued-job-id' },
+          create: expect.objectContaining({ network: 'testnet', status: 'running' }),
+        }),
+      );
     });
 
     it('clamps at 0 when fromLedger is 0', async () => {
@@ -51,6 +59,7 @@ describe('AdminService', () => {
       const prisma = {
         $transaction: jest.fn(async (fn: (t: { ledgerCursor: { upsert: jest.Mock } }) => Promise<void>) =>
           fn({ ledgerCursor: { upsert } })),
+        reindexProgress: { upsert: jest.fn() },
       };
       const svc = new AdminService(prisma as never, { refreshFlags: jest.fn() } as never);
       await svc.enqueueReindex(0, 'public');
@@ -151,6 +160,45 @@ describe('AdminService', () => {
         state: 'completed',
         data: { fromLedger: 100, toLedger: 149 },
       });
+    });
+  });
+
+  describe('getReindexStatus', () => {
+    function makeSvcWithProgress(row: unknown) {
+      const prisma = {
+        $transaction: jest.fn(),
+        reindexProgress: {
+          upsert: jest.fn(),
+          findFirst: jest.fn().mockResolvedValue(row),
+        },
+      };
+      return new AdminService(prisma as never, { refreshFlags: jest.fn() } as never);
+    }
+
+    it('returns null when no progress row exists', async () => {
+      const svc = makeSvcWithProgress(null);
+      expect(await svc.getReindexStatus('testnet')).toBeNull();
+    });
+
+    it('calculates percentage correctly', async () => {
+      const svc = makeSvcWithProgress({
+        jobId: 'j1', network: 'testnet',
+        startLedger: 500, targetLedger: 1000, currentLedger: 750,
+        status: 'running', startTime: new Date('2026-01-01'),
+      });
+      const result = await svc.getReindexStatus('testnet');
+      expect(result?.percentage).toBe(50);
+      expect(result?.status).toBe('running');
+    });
+
+    it('returns 100% when startLedger equals targetLedger', async () => {
+      const svc = makeSvcWithProgress({
+        jobId: 'j2', network: 'testnet',
+        startLedger: 1000, targetLedger: 1000, currentLedger: 1000,
+        status: 'completed', startTime: new Date(),
+      });
+      const result = await svc.getReindexStatus('testnet');
+      expect(result?.percentage).toBe(100);
     });
   });
 });

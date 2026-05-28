@@ -297,3 +297,25 @@ enum TicketStatus {
   RESOLVED
   CLOSED
 }
+
+/// Tracks progress of an operator-initiated reindex job.
+/// One row per BullMQ job ID; updated atomically with each processed batch.
+model ReindexProgress {
+  jobId           String   @id @map("job_id")
+  network         String
+  startLedger     Int      @default(0) @map("start_ledger")
+  targetLedger    Int      @default(0) @map("target_ledger")
+  currentLedger   Int      @default(0) @map("current_ledger")
+  totalEvents     Int      @default(0) @map("total_events")
+  processedEvents Int      @default(0) @map("processed_events")
+  startTime       DateTime @default(now()) @map("start_time")
+  lastUpdate      DateTime @default(now()) @updatedAt @map("last_update")
+  status          String   @default("running") /// "running" | "completed" | "failed"
+  errorCount      Int      @default(0) @map("error_count")
+  lastError       String?  @map("last_error")
+
+  @@index([network])
+  @@index([status])
+  @@index([lastUpdate])
+  @@map("reindex_progress")
+}

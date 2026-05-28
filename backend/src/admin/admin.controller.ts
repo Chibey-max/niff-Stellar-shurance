@@ -90,6 +90,22 @@ export class AdminController {
   }
 
   /**
+   * GET /admin/reindex/status
+   *
+   * Returns the latest reindex progress for a network, including percentage complete.
+   */
+  @Get('reindex/status')
+  @ApiOperation({ summary: 'Get latest reindex progress for a network' })
+  async getReindexStatus(@Query('network') networkParam?: string) {
+    const network = networkParam ?? this.configService.get<string>('STELLAR_NETWORK', 'testnet');
+    const status = await this.adminService.getReindexStatus(network);
+    if (!status) {
+      throw new NotFoundException(`No reindex progress found for network ${network}`);
+    }
+    return status;
+  }
+
+  /**
    * POST /admin/indexer/backfill
    *
    * Validates the ledger range, splits it into batches, and enqueues one
