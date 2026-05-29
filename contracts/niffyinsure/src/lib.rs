@@ -755,6 +755,17 @@ impl NiffyInsure {
         storage::get_max_evidence_count(&env)
     }
 
+    /// Admin-only: update the allowlisted IPFS gateway URL prefixes for evidence validation.
+    /// Evidence URLs must start with `ipfs://` or one of the allowlisted gateway prefixes.
+    pub fn admin_set_gateway_allowlist(env: Env, gateways: Vec<String>) -> Result<(), AdminError> {
+        admin::set_gateway_allowlist(&env, gateways)
+    }
+
+    /// Read the current allowlisted IPFS gateway URL prefixes.
+    pub fn get_gateway_allowlist(env: Env) -> Vec<String> {
+        storage::get_gateway_allowlist(&env)
+    }
+
     // ═════════════════════════════════════════════════════════════════════════════
     // PAUSE SYSTEM
     //
