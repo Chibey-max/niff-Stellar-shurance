@@ -99,6 +99,12 @@ impl NiffyInsure {
         soroban_sdk::String::from_str(&env, env!("CARGO_PKG_VERSION"))
     }
 
+    /// Read-only: on-chain WASM hash for this deployed contract.
+    /// The returned value is the canonical hash used by the deployment registry and RPC tooling.
+    pub fn get_wasm_hash(env: Env) -> soroban_sdk::BytesN<32> {
+        env.deployer().current_contract_wasm_hash()
+    }
+
     /// Read-only: balance of the default payout token held by this contract (payout reserve).
     /// Matches funds available for `process_claim` for the configured default asset.
     pub fn get_treasury_balance(env: Env) -> i128 {
@@ -175,6 +181,7 @@ impl NiffyInsure {
             52 => validate::Error::NonceMismatch,
             53 => validate::Error::ClaimNotProcessing,
             54 => validate::Error::RollingClaimCapExceeded,
+            55 => validate::Error::PayoutDeadlineNotReached,
             _ => validate::Error::ClaimNotApproved,
         };
         policy::map_quote_error(&env, err)
@@ -303,6 +310,14 @@ impl NiffyInsure {
         claim_id: u64,
     ) -> Result<types::ClaimStatus, validate::Error> {
         claim::process_deadline(&env, claim_id)
+    }
+
+    /// Permissionless keeper: auto-reject an approved claim once its payout deadline has elapsed.
+    pub fn process_payout_timeout(
+        env: Env,
+        claim_id: u64,
+    ) -> Result<types::ClaimStatus, validate::Error> {
+        claim::process_payout_timeout(&env, claim_id)
     }
 
     pub fn get_claim_history(

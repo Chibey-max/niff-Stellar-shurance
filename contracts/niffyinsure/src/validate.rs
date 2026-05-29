@@ -69,6 +69,8 @@ pub enum Error {
     ClaimNotProcessing = 53,
     /// New claim would exceed the rolling per-policy paid-amount cap for the current window.
     RollingClaimCapExceeded = 54,
+    /// Keeper `process_payout_timeout` called before the approved payout deadline elapsed.
+    PayoutDeadlineNotReached = 55,
 }
 
 pub fn validate_quorum_bps(bps: u32) -> Result<(), Error> {
