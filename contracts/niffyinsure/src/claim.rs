@@ -595,7 +595,107 @@ pub fn finalize_claim(env: &Env, claim_id: u64) -> Result<ClaimStatus, Error> {
     finalize_claim_inner(env, claim_id)
 }
 
-/// Permissionless keeper: same outcome as [`finalize_claim`] when voting has ended, but returns
+// ── Batch finalization constants ──────────────────────────────────────────────
+
+/// Maximum number of claim IDs accepted in a single `finalize_expired_batch` call.
+///
+/// Sized to stay within Soroban's default instruction budget for a single transaction.
+/// Each claim requires at least one persistent read + write; 20 matches the existing
+/// `PAGE_SIZE_MAX` pagination cap used elsewhere in this contract.
+///
+/// Callers that need to process more claims must split into multiple transactions.
+pub const BATCH_FINALIZE_MAX: u32 = 20;
+
+// ── BatchFinalized event ──────────────────────────────────────────────────────
+
+/// Summary event emitted once per `finalize_expired_batch` call after all eligible
+/// claims have been processed.
+///
+/// topics: ("niffyinsure", "batch_finalized")
+/// payload: { processed, skipped, at_ledger }
+///
+/// `processed` = number of claims that transitioned out of `Processing`.
+/// `skipped`   = number of claim IDs that were already terminal or not found.
+#[contractevent(topics = ["niffyinsure", "batch_finalized"])]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BatchFinalized {
+    pub processed: u32,
+    pub skipped: u32,
+    pub at_ledger: u32,
+}
+
+/// Permissionless keeper: finalize multiple expired claims in one transaction.
+///
+/// For each `claim_id` in `claim_ids`:
+/// - If the claim is not found or already terminal → skip (no revert).
+/// - If the voting deadline has not passed → skip (no revert).
+/// - Otherwise → finalize via the same logic as `process_deadline`.
+///
+/// Reverts before any processing if `claim_ids.len() > BATCH_FINALIZE_MAX`.
+/// Reverts if `claims_paused` is set.
+///
+/// Emits individual finalization events per claim (via `finalize_claim_inner`)
+/// and one `BatchFinalized` summary event at the end.
+pub fn finalize_expired_batch(
+    env: &Env,
+    claim_ids: &soroban_sdk::Vec<u64>,
+) -> Result<(u32, u32), Error> {
+    if storage::get_pause_flags(env).claims_paused {
+        return Err(Error::CalculatorPaused);
+    }
+    if claim_ids.len() > BATCH_FINALIZE_MAX {
+        return Err(Error::PolicyBatchTooLarge);
+    }
+
+    let now = env.ledger().sequence();
+    let mut processed: u32 = 0;
+    let mut skipped: u32 = 0;
+
+    for i in 0..claim_ids.len() {
+        let claim_id = claim_ids.get(i).unwrap();
+
+        let claim = match storage::get_claim(env, claim_id) {
+            Some(c) => c,
+            None => {
+                skipped += 1;
+                continue;
+            }
+        };
+
+        // Skip already-finalized claims without reverting.
+        if claim.status.is_terminal() {
+            skipped += 1;
+            continue;
+        }
+
+        // Skip claims whose voting window is still open.
+        if !ledger::is_claim_past_voting_deadline(now, claim.voting_deadline_ledger) {
+            skipped += 1;
+            continue;
+        }
+
+        // Only finalize Processing claims (same guard as process_deadline).
+        if claim.status != ClaimStatus::Processing {
+            skipped += 1;
+            continue;
+        }
+
+        // finalize_claim_inner never panics for eligible claims; propagate unexpected errors.
+        finalize_claim_inner(env, claim_id)?;
+        processed += 1;
+    }
+
+    BatchFinalized {
+        processed,
+        skipped,
+        at_ledger: now,
+    }
+    .publish(env);
+
+    Ok((processed, skipped))
+}
+
+/// Permissionless keeper: same outcome as `finalize_claim` when voting has ended, but returns
 /// [`Error::CalculatorPaused`] if `claims_paused` is set instead of panicking.
 ///
 /// Only [`ClaimStatus::Processing`] claims are eligible so keepers cannot advance appeal or other flows.

@@ -281,6 +281,15 @@ pub fn initiate_policy(
     // Check granular pause: policy binding should be blocked if bind_paused
     storage::assert_bind_not_paused(env);
 
+    // Policy type registry check: if the registry is enabled, the requested type
+    // must be registered and active. If the registry has never been used, all types
+    // are allowed for backward compatibility with pre-registry deployments.
+    if storage::is_policy_type_registry_enabled(env)
+        && !storage::is_policy_type_active(env, &policy_type)
+    {
+        return Err(PolicyError::AssetNotAllowed);
+    }
+
     // Asset allowlist check — before auth so callers get a clear error.
     if !storage::is_allowed_asset(env, &asset) {
         return Err(PolicyError::AssetNotAllowed);

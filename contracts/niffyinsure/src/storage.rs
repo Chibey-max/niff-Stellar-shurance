@@ -159,6 +159,16 @@ pub enum DataKey {
     CommitRevealPhases(u64),
     /// Voter's 32-byte commitment hash: SHA-256(vote_byte || salt).
     VoteCommitment(u64, Address),
+    // ── Policy type registry ──────────────────────────────────────────────────
+    /// Admin-managed per-policy-type configuration (payout override, active flag).
+    PolicyTypeConfig(crate::types::PolicyType),
+    /// Whether a policy type is registered and active in the registry.
+    PolicyTypeActive(crate::types::PolicyType),
+    /// Whether the policy type registry is enabled (set on first registration).
+    PolicyTypeRegistryEnabled,
+    // ── Per-asset premium table ───────────────────────────────────────────────
+    /// Asset-specific multiplier table (falls back to global default when absent).
+    AssetPremiumTable(Address),
 }
 pub fn has_open_claim(env: &Env, holder: &Address, policy_id: u32) -> bool {
     env.storage()
@@ -1222,6 +1232,35 @@ pub fn set_policy_type_config(
     env.storage()
         .instance()
         .set(&DataKey::PolicyTypeConfig(policy_type.clone()), config);
+}
+
+/// Returns `true` if the policy type is registered and active in the registry.
+pub fn is_policy_type_active(env: &Env, policy_type: &crate::types::PolicyType) -> bool {
+    env.storage()
+        .instance()
+        .get(&DataKey::PolicyTypeActive(policy_type.clone()))
+        .unwrap_or(false)
+}
+
+/// Set the active flag for a policy type in the registry.
+pub fn set_policy_type_active(env: &Env, policy_type: &crate::types::PolicyType, active: bool) {
+    env.storage()
+        .instance()
+        .set(&DataKey::PolicyTypeActive(policy_type.clone()), &active);
+    // Mark the registry as enabled on first registration.
+    if active {
+        env.storage()
+            .instance()
+            .set(&DataKey::PolicyTypeRegistryEnabled, &true);
+    }
+}
+
+/// Returns `true` if the policy type registry has been activated (at least one type registered).
+pub fn is_policy_type_registry_enabled(env: &Env) -> bool {
+    env.storage()
+        .instance()
+        .get(&DataKey::PolicyTypeRegistryEnabled)
+        .unwrap_or(false)
 }
 
 // ── Per-asset premium table (instance) ───────────────────────────────────────

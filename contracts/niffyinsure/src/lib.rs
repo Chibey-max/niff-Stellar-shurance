@@ -60,6 +60,14 @@ struct QuorumUpdated {
     pub new_bps: u32,
 }
 
+#[contractevent(topics = ["niffyinsure", "policy_type_registered"])]
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct PolicyTypeRegistered {
+    pub policy_type: types::PolicyType,
+    /// `true` = registered/active, `false` = deregistered/inactive.
+    pub active: bool,
+}
+
 #[contractevent(topics = ["niffyinsure", "pause_toggled"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct PauseToggled {
@@ -333,6 +341,18 @@ impl NiffyInsure {
         claim_id: u64,
     ) -> Result<types::ClaimStatus, validate::Error> {
         claim::process_deadline(&env, claim_id)
+    }
+
+    /// Permissionless keeper: finalize multiple expired claims in one transaction.
+    ///
+    /// Processes each claim independently; skips already-finalized or ineligible claims.
+    /// Reverts before any processing if `claim_ids.len() > BATCH_FINALIZE_MAX` (20).
+    /// Returns `(processed, skipped)` counts.
+    pub fn finalize_expired_batch(
+        env: Env,
+        claim_ids: soroban_sdk::Vec<u64>,
+    ) -> Result<(u32, u32), validate::Error> {
+        claim::finalize_expired_batch(&env, &claim_ids)
     }
 
     /// Permissionless keeper: auto-reject an approved claim once its payout deadline has elapsed.
@@ -832,6 +852,61 @@ impl NiffyInsure {
         asset: Address,
     ) -> Option<types::MultiplierTable> {
         storage::get_asset_premium_table(&env, &asset)
+    }
+
+    // ── Policy type registry ──────────────────────────────────────────────────
+
+    /// Admin-only: register or update a policy type in the registry.
+    ///
+    /// Once registered and active, `initiate_policy` will accept this type.
+    /// Emits `PolicyTypeRegistered`.
+    pub fn admin_register_policy_type(
+        env: Env,
+        policy_type: types::PolicyType,
+        config: types::PolicyTypeConfig,
+    ) -> Result<(), admin::AdminError> {
+        admin::require_admin(&env);
+        storage::bump_instance(&env);
+        storage::set_policy_type_config(&env, &policy_type, &config);
+        storage::set_policy_type_active(&env, &policy_type, true);
+        PolicyTypeRegistered {
+            policy_type,
+            active: true,
+        }
+        .publish(&env);
+        Ok(())
+    }
+
+    /// Admin-only: deregister a policy type (marks it inactive).
+    ///
+    /// Existing policies of this type remain valid; only new initiations are blocked.
+    /// Emits `PolicyTypeRegistered` with `active = false`.
+    pub fn admin_deregister_policy_type(
+        env: Env,
+        policy_type: types::PolicyType,
+    ) -> Result<(), admin::AdminError> {
+        admin::require_admin(&env);
+        storage::bump_instance(&env);
+        storage::set_policy_type_active(&env, &policy_type, false);
+        PolicyTypeRegistered {
+            policy_type,
+            active: false,
+        }
+        .publish(&env);
+        Ok(())
+    }
+
+    /// Read-only: returns `true` if the policy type is registered and active.
+    pub fn is_policy_type_active(env: Env, policy_type: types::PolicyType) -> bool {
+        storage::is_policy_type_active(&env, &policy_type)
+    }
+
+    /// Read-only: returns the config for a policy type, or `None` if not registered.
+    pub fn get_policy_type_config(
+        env: Env,
+        policy_type: types::PolicyType,
+    ) -> Option<types::PolicyTypeConfig> {
+        storage::get_policy_type_config(&env, &policy_type)
     }
 
     // ═════════════════════════════════════════════════════════════════════════════
