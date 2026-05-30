@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWallet } from '@/hooks/use-wallet';
 import { useLatestLedger } from '@/hooks/use-latest-ledger';
 import { getConfig } from '@/config/env';
 import { useOptimisticPolicies, PolicyConfirmationPoller } from '../hooks/useOptimisticPolicies';
+import { groupPoliciesByExpiry } from '../utils/policyGrouping';
 import { PolicyCard, PolicyRow } from './PolicyItem';
 import { PolicyListSkeleton, PolicyEmptyState, PolicyErrorState } from './PolicyStates';
 import { RenewModal } from './RenewModal';
@@ -33,6 +34,14 @@ export function PolicyDashboard() {
 
   const { policies, total, pageIndex, hasNextPage, hasPrevPage, loading, error, goToPage, retry, applyOptimisticPolicy, mergedPolicies, entries: optimisticEntries, confirm: confirmOptimistic, rollback: rollbackOptimistic } =
     useOptimisticPolicies(address, network, status, sort);
+
+  const policyGroups = useMemo(() => groupPoliciesByExpiry(mergedPolicies), [mergedPolicies]);
+  const hasPolicies = mergedPolicies.length > 0;
+  const policySections = [
+    { key: 'active', title: 'Active policies', policies: policyGroups.active },
+    { key: 'expiringSoon', title: 'Expiring soon', policies: policyGroups.expiringSoon },
+    { key: 'expired', title: 'Expired policies', policies: policyGroups.expired },
+  ];
 
   const handleRenew = useCallback((policy: PolicyDto) => setRenewTarget(policy), []);
   const handleTerminate = useCallback((policy: PolicyDto) => setTerminateTarget(policy), []);
