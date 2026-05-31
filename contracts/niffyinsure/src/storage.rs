@@ -491,6 +491,19 @@ pub fn set_pause_flags(env: &Env, flags: &PauseFlags) {
     env.storage().instance().set(&DataKey::Paused, flags);
 }
 
+/// Set the pause reason. Pass `None` to clear (on unpause).
+pub fn set_pause_reason(env: &Env, reason: Option<crate::types::PauseReason>) {
+    match reason {
+        Some(r) => env.storage().instance().set(&DataKey::PauseReason, &r),
+        None => env.storage().instance().remove(&DataKey::PauseReason),
+    }
+}
+
+/// Get the current pause reason. Returns `None` when unpaused or reason not set.
+pub fn get_pause_reason(env: &Env) -> Option<crate::types::PauseReason> {
+    env.storage().instance().get(&DataKey::PauseReason)
+}
+
 // ── Claim counter (instance) ──────────────────────────────────────────────────
 
 pub fn get_claim_counter(env: &Env) -> u64 {
