@@ -159,6 +159,16 @@ pub enum DataKey {
     CommitRevealPhases(u64),
     /// Voter's 32-byte commitment hash: SHA-256(vote_byte || salt).
     VoteCommitment(u64, Address),
+    // ── Policy type registry ──────────────────────────────────────────────────
+    /// Admin-managed per-policy-type configuration (payout override, active flag).
+    PolicyTypeConfig(crate::types::PolicyType),
+    /// Whether a policy type is registered and active in the registry.
+    PolicyTypeActive(crate::types::PolicyType),
+    /// Whether the policy type registry is enabled (set on first registration).
+    PolicyTypeRegistryEnabled,
+    // ── Per-asset premium table ───────────────────────────────────────────────
+    /// Asset-specific multiplier table (falls back to global default when absent).
+    AssetPremiumTable(Address),
 }
 pub fn has_open_claim(env: &Env, holder: &Address, policy_id: u32) -> bool {
     env.storage()
@@ -1224,6 +1234,35 @@ pub fn set_policy_type_config(
         .set(&DataKey::PolicyTypeConfig(policy_type.clone()), config);
 }
 
+/// Returns `true` if the policy type is registered and active in the registry.
+pub fn is_policy_type_active(env: &Env, policy_type: &crate::types::PolicyType) -> bool {
+    env.storage()
+        .instance()
+        .get(&DataKey::PolicyTypeActive(policy_type.clone()))
+        .unwrap_or(false)
+}
+
+/// Set the active flag for a policy type in the registry.
+pub fn set_policy_type_active(env: &Env, policy_type: &crate::types::PolicyType, active: bool) {
+    env.storage()
+        .instance()
+        .set(&DataKey::PolicyTypeActive(policy_type.clone()), &active);
+    // Mark the registry as enabled on first registration.
+    if active {
+        env.storage()
+            .instance()
+            .set(&DataKey::PolicyTypeRegistryEnabled, &true);
+    }
+}
+
+/// Returns `true` if the policy type registry has been activated (at least one type registered).
+pub fn is_policy_type_registry_enabled(env: &Env) -> bool {
+    env.storage()
+        .instance()
+        .get(&DataKey::PolicyTypeRegistryEnabled)
+        .unwrap_or(false)
+}
+
 // ── Per-asset premium table (instance) ───────────────────────────────────────
 
 /// Get the asset-specific multiplier table for `asset`.
@@ -1292,129 +1331,96 @@ pub fn set_oracle_enabled(_env: &Env, _enabled: bool) {
     panic!("ORACLE_TRIGGERS_DISABLED")
 }
 
-// ── Region registry ───────────────────────────────────────────────────────────
+// ── Issue #583: Claim fraud score ─────────────────────────────────────────────
 
-pub fn get_region_registry(env: &Env) -> Map<String, crate::types::RegionConfig> {
-    env.storage()
-        .instance()
-        .get(&DataKey::RegionRegistry)
-        .unwrap_or_else(|| Map::new(env))
-}
-
-pub fn set_region_registry(env: &Env, registry: &Map<String, crate::types::RegionConfig>) {
-    env.storage()
-        .instance()
-        .set(&DataKey::RegionRegistry, registry);
-}
-
-pub fn get_region_config(env: &Env, code: &String) -> Option<crate::types::RegionConfig> {
-    get_region_registry(env).get(code.clone())
-}
-
-// ── Treatment tracking ────────────────────────────────────────────────────────
-
-pub fn get_treatment_count(env: &Env, pet_id: u64) -> u64 {
-    env.storage()
-        .persistent()
-        .get(&DataKey::TreatmentCount(pet_id))
-        .unwrap_or(0u64)
-}
-
-pub fn increment_treatment_count(env: &Env, pet_id: u64) -> u64 {
-    let key = DataKey::TreatmentCount(pet_id);
-    let count: u64 = env.storage().persistent().get(&key).unwrap_or(0u64) + 1;
-    env.storage().persistent().set(&key, &count);
-    env.storage()
-        .persistent()
-        .extend_ttl(&key, PERSISTENT_TTL_THRESHOLD, PERSISTENT_TTL_EXTEND_TO);
-    count
-}
-
-// ── Vet specialization registry ───────────────────────────────────────────────
-
-pub fn get_vet_specializations(
-    env: &Env,
-    vet: &Address,
-) -> Vec<crate::types::Specialization> {
-    env.storage()
-        .persistent()
-        .get(&DataKey::VetSpecializations(vet.clone()))
-        .unwrap_or_else(|| Vec::new(env))
-}
-
-pub fn set_vet_specializations(
-    env: &Env,
-    vet: &Address,
-    specs: &Vec<crate::types::Specialization>,
-) {
-    let key = DataKey::VetSpecializations(vet.clone());
-    env.storage().persistent().set(&key, specs);
+pub fn set_claim_fraud_score(env: &Env, claim_id: u64, score: u32) {
+    let key = DataKey::ClaimFraudScore(claim_id);
+    env.storage().persistent().set(&key, &score);
     env.storage()
         .persistent()
         .extend_ttl(&key, PERSISTENT_TTL_THRESHOLD, PERSISTENT_TTL_EXTEND_TO);
 }
 
-pub fn vet_has_specialization(
-    env: &Env,
-    vet: &Address,
-    spec: &crate::types::Specialization,
-) -> bool {
-    get_vet_specializations(env, vet)
-        .iter()
-        .any(|s| s == *spec)
+pub fn get_claim_fraud_score(env: &Env, claim_id: u64) -> Option<u32> {
+    env.storage()
+        .persistent()
+        .get(&DataKey::ClaimFraudScore(claim_id))
 }
 
-// ── Event subscription filter system ─────────────────────────────────────────
-
-pub fn next_subscription_id(env: &Env) -> u64 {
-    let id: u64 = env
-        .storage()
-        .instance()
-        .get(&DataKey::SubscriptionCounter)
-        .unwrap_or(0u64)
-        + 1;
+pub fn set_fraud_score_threshold(env: &Env, threshold: u32) {
     env.storage()
         .instance()
-        .set(&DataKey::SubscriptionCounter, &id);
-    id
+        .set(&DataKey::FraudScoreThreshold, &threshold);
 }
 
-pub fn get_subscription(env: &Env, id: u64) -> Option<crate::types::Subscription> {
+/// Threshold above which elevated quorum is required. Default: 75.
+pub fn get_fraud_score_threshold(env: &Env) -> u32 {
     env.storage()
-        .persistent()
-        .get(&DataKey::Subscription(id))
+        .instance()
+        .get(&DataKey::FraudScoreThreshold)
+        .unwrap_or(75u32)
 }
 
-pub fn set_subscription(env: &Env, sub: &crate::types::Subscription) {
-    let key = DataKey::Subscription(sub.id);
-    env.storage().persistent().set(&key, sub);
+pub fn set_elevated_quorum_bps(env: &Env, bps: u32) {
     env.storage()
-        .persistent()
-        .extend_ttl(&key, PERSISTENT_TTL_THRESHOLD, PERSISTENT_TTL_EXTEND_TO);
+        .instance()
+        .set(&DataKey::ElevatedQuorumBps, &bps);
 }
 
-pub fn remove_subscription(env: &Env, id: u64) {
-    env.storage().persistent().remove(&DataKey::Subscription(id));
-}
-
-pub fn get_owner_subscription_ids(
-    env: &Env,
-    owner: &Address,
-) -> Vec<u64> {
+/// Elevated quorum bps used when fraud score exceeds threshold. Default: 7500 (75%).
+pub fn get_elevated_quorum_bps(env: &Env) -> u32 {
     env.storage()
-        .persistent()
-        .get(&DataKey::OwnerSubscriptions(owner.clone()))
-        .unwrap_or_else(|| Vec::new(env))
+        .instance()
+        .get(&DataKey::ElevatedQuorumBps)
+        .unwrap_or(7500u32)
 }
 
-pub fn set_owner_subscription_ids(
-    env: &Env,
-    owner: &Address,
-    ids: &Vec<u64>,
-) {
-    let key = DataKey::OwnerSubscriptions(owner.clone());
-    env.storage().persistent().set(&key, ids);
+// ── Issue #587: Asset-specific claim amount bounds ────────────────────────────
+
+pub fn set_allowed_asset_config(env: &Env, asset: &Address, config: &crate::types::AllowedAssetConfig) {
     env.storage()
-        .persistent()
-        .extend_ttl(&key, PERSISTENT_TTL_THRESHOLD, PERSISTENT_TTL_EXTEND_TO);
+        .instance()
+        .set(&DataKey::AllowedAssetConfig(asset.clone()), config);
+}
+
+pub fn get_allowed_asset_config(env: &Env, asset: &Address) -> Option<crate::types::AllowedAssetConfig> {
+    env.storage()
+        .instance()
+        .get(&DataKey::AllowedAssetConfig(asset.clone()))
+}
+
+// ── Issue #585: Admin role delegation ────────────────────────────────────────
+
+pub fn set_delegation(env: &Env, operator: &Address, record: &crate::types::DelegationRecord) {
+    env.storage()
+        .instance()
+        .set(&DataKey::Delegation(operator.clone()), record);
+}
+
+pub fn get_delegation(env: &Env, operator: &Address) -> Option<crate::types::DelegationRecord> {
+    env.storage()
+        .instance()
+        .get(&DataKey::Delegation(operator.clone()))
+}
+
+pub fn remove_delegation(env: &Env, operator: &Address) {
+    env.storage()
+        .instance()
+        .remove(&DataKey::Delegation(operator.clone()));
+}
+
+// ── Issue #581: Reinsurance pool ──────────────────────────────────────────────
+
+pub fn set_reinsurance_contract(env: &Env, addr: &Address) {
+    env.storage()
+        .instance()
+        .set(&DataKey::ReinsuranceContract, addr);
+}
+
+pub fn get_reinsurance_contract(env: &Env) -> Option<Address> {
+    env.storage().instance().get(&DataKey::ReinsuranceContract)
+}
+
+pub fn clear_reinsurance_contract(env: &Env) {
+    env.storage().instance().remove(&DataKey::ReinsuranceContract);
 }
