@@ -22,6 +22,12 @@ const publicEnvSchema = z.object({
   NEXT_PUBLIC_CAPTCHA_PROVIDER: z.enum(['turnstile', 'hcaptcha']).optional(),
 })
 
+// During tests, provide sensible defaults so the build-time guard doesn't
+// abort the process (Jest imports next.config and expects it to load).
+if (process.env.NODE_ENV === 'test' || process.env.npm_lifecycle_event === 'test') {
+  process.env.NEXT_PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000'
+}
+
 const buildEnvResult = publicEnvSchema.safeParse(process.env)
 if (!buildEnvResult.success) {
   const messages = buildEnvResult.error.issues
