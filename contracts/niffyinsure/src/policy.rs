@@ -312,8 +312,8 @@ pub fn check_solvency_ratio(env: &Env, asset: &Address, new_coverage: i128) -> b
         return false;
     }
 
-    let obligations = storage::outstanding_approved_claim_obligations(env, asset)
-        .saturating_add(new_coverage);
+    let obligations =
+        storage::outstanding_approved_claim_obligations(env, asset).saturating_add(new_coverage);
     if obligations <= 0 {
         return true;
     }
@@ -380,7 +380,9 @@ pub fn initiate_policy(
         premium::SCALE
     } else {
         let code = region_code.ok_or(PolicyError::InvalidRegion)?;
-        let config = region_registry.get(code).ok_or(PolicyError::InvalidRegion)?;
+        let config = region_registry
+            .get(code)
+            .ok_or(PolicyError::InvalidRegion)?;
         if !config.active {
             return Err(PolicyError::InvalidRegion);
         }
@@ -420,15 +422,21 @@ pub fn initiate_policy(
 
     // Compute premium via the calculator (external or local fallback).
     // Pass the policy asset so asset-specific tables are used when configured.
-    let quote =
-        crate::calculator::compute_quote(env, &input, base_amount, false, QUOTE_TTL_LEDGERS, Some(&asset))
-            .map_err(|e| match e {
-                validate::Error::CalculatorPaused => PolicyError::ContractPaused,
-                validate::Error::CalculatorCallFailed | validate::Error::CalculatorNotSet => {
-                    PolicyError::PremiumOverflow
-                }
-                _ => PolicyError::PremiumOverflow,
-            })?;
+    let quote = crate::calculator::compute_quote(
+        env,
+        &input,
+        base_amount,
+        false,
+        QUOTE_TTL_LEDGERS,
+        Some(&asset),
+    )
+    .map_err(|e| match e {
+        validate::Error::CalculatorPaused => PolicyError::ContractPaused,
+        validate::Error::CalculatorCallFailed | validate::Error::CalculatorNotSet => {
+            PolicyError::PremiumOverflow
+        }
+        _ => PolicyError::PremiumOverflow,
+    })?;
     let premium_amount = premium::checked_mul_ratio(
         quote.total_premium,
         region_risk_multiplier,
@@ -776,15 +784,19 @@ pub fn renew_policy(
         safety_score,
     };
 
-    let quote =
-        crate::calculator::compute_quote(env, &input, policy.coverage, false, QUOTE_TTL_LEDGERS, Some(&policy.asset))
-            .map_err(|e| match e {
-                Error::CalculatorPaused => PolicyError::ContractPaused,
-                Error::CalculatorCallFailed | Error::CalculatorNotSet => {
-                    PolicyError::PremiumOverflow
-                }
-                _ => PolicyError::PremiumOverflow,
-            })?;
+    let quote = crate::calculator::compute_quote(
+        env,
+        &input,
+        policy.coverage,
+        false,
+        QUOTE_TTL_LEDGERS,
+        Some(&policy.asset),
+    )
+    .map_err(|e| match e {
+        Error::CalculatorPaused => PolicyError::ContractPaused,
+        Error::CalculatorCallFailed | Error::CalculatorNotSet => PolicyError::PremiumOverflow,
+        _ => PolicyError::PremiumOverflow,
+    })?;
 
     let premium_amount = quote.total_premium;
     if premium_amount <= 0 {
@@ -847,8 +859,7 @@ pub fn transfer_policy(
         return Err(Error::PolicyTransferInvalid);
     }
 
-    let mut policy =
-        storage::get_policy(env, holder, policy_id).ok_or(Error::PolicyNotFound)?;
+    let mut policy = storage::get_policy(env, holder, policy_id).ok_or(Error::PolicyNotFound)?;
 
     if !policy.is_active {
         return Err(Error::PolicyInactive);

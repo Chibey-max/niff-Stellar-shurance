@@ -88,7 +88,11 @@ fn circular_delegation_attempt_reverts() {
     seed(&client, &b, 1_000_000, 10_000);
 
     client.delegate_vote(&a, &b, &200);
-    let err = client.try_delegate_vote(&b, &a, &200).err().unwrap().unwrap();
+    let err = client
+        .try_delegate_vote(&b, &a, &200)
+        .err()
+        .unwrap()
+        .unwrap();
     assert_eq!(err, ValidateError::CircularDelegation.into());
 }
 

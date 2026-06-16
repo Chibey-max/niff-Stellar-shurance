@@ -4,9 +4,7 @@ mod common;
 
 use niffyinsure::{
     storage,
-    types::{
-        Claim, ClaimStatus, ClaimStatusHistoryEntry, CLAIM_BATCH_GET_MAX,
-    },
+    types::{Claim, ClaimStatus, ClaimStatusHistoryEntry, CLAIM_BATCH_GET_MAX},
     validate::Error as ValidateError,
     NiffyInsureClient,
 };

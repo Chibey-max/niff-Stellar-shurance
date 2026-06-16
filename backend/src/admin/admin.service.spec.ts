@@ -1,24 +1,35 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AdminService } from '../admin.service';
-import { PrismaService } from '../../prisma/prisma.service';
-import { FeatureFlagsService } from '../../feature-flags/feature-flags.service';
+import { AdminService } from './admin.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { FeatureFlagsService } from '../feature-flags/feature-flags.service';
 import { ClaimStatus } from '@prisma/client';
-import { BadRequestException } from '@nestjs/common';
-import { BULK_UPDATE_MAX_BATCH } from '../dto/bulk-update-claims.dto';
+import { BULK_UPDATE_MAX_BATCH } from './dto/bulk-update-claims.dto';
 
-jest.mock('bullmq', () => ({ Queue: jest.fn().mockImplementation(() => ({ add: jest.fn(), getJob: jest.fn() })) }));
-jest.mock('../../redis/client', () => ({ getBullMQConnection: jest.fn().mockReturnValue({}) }));
+const mockQueueAdd = jest.fn().mockResolvedValue({ id: 'queued-job-id' });
+const mockQueueGetJob = jest.fn();
+
+jest.mock('bullmq', () => ({
+  Queue: jest.fn().mockImplementation(() => ({ add: mockQueueAdd, getJob: mockQueueGetJob })),
+}));
+jest.mock('../redis/client', () => ({ getBullMQConnection: jest.fn().mockReturnValue({}) }));
 
 const mockClaims = [
   { id: 1, status: ClaimStatus.PENDING, policyId: 'G:1' },
   { id: 2, status: ClaimStatus.PENDING, policyId: 'G:2' },
 ];
 
-const mockPrisma = {
+type MockPrisma = {
+  claim: { findMany: jest.Mock; updateMany: jest.Mock };
+  adminAuditLog: { create: jest.Mock };
+  featureFlag: { upsert: jest.Mock; findMany: jest.Mock };
+  $transaction: jest.Mock;
+};
+
+const mockPrisma: MockPrisma = {
   claim: { findMany: jest.fn().mockResolvedValue(mockClaims), updateMany: jest.fn() },
   adminAuditLog: { create: jest.fn() },
   featureFlag: { upsert: jest.fn(), findMany: jest.fn() },
-  $transaction: jest.fn(async (fn: (tx: typeof mockPrisma) => Promise<void>) => fn(mockPrisma)),
+  $transaction: jest.fn(async (fn: (tx: MockPrisma) => Promise<void>) => fn(mockPrisma)),
 };
 
 describe('AdminService.bulkUpdateClaims', () => {

@@ -152,6 +152,87 @@ Emitted when voting reaches majority **or** the vote window expires.
 
 ---
 
+### `payout_asset_override_applied` — policy payout asset override used
+
+Emitted when claim settlement uses a policy-type payout asset override instead of
+the premium asset stored on the policy.
+
+**Topics:** `("niffyinsure", "payout_asset_override_applied", claim_id: u64)`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `version` | u32 | Event schema version |
+| `policy_type` | PolicyType | Policy type whose configuration supplied the override |
+| `premium_asset` | string (C…) | Asset used for the policy premium |
+| `payout_asset` | string (C…) | Asset used for the claim payout |
+
+---
+
+### `installment_disbursed` — partial claim payout executed
+
+Emitted by `disburse_installment` for each partial payout on an approved claim.
+
+**Topics:** `("niffyinsure", "installment_disbursed", claim_id: u64)`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `version` | u32 | Event schema version |
+| `recipient` | string (G… or C…) | Address receiving the installment |
+| `amount` | string (stroops) | Amount disbursed in this installment |
+| `paid_amount` | string (stroops) | Cumulative amount paid after this installment |
+| `total_amount` | string (stroops) | Total approved claim amount |
+| `installment_count` | u32 | Number of installments paid so far |
+| `asset` | string (C…) | Asset contract used for payout |
+| `at_ledger` | u32 (ledger) | Ledger when the installment was disbursed |
+
+---
+
+### `claim_fully_paid` — installment claim completed
+
+Emitted by `disburse_installment` when cumulative installments fully satisfy the
+net approved claim amount.
+
+**Topics:** `("niffyinsure", "claim_fully_paid", claim_id: u64)`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `version` | u32 | Event schema version |
+| `recipient` | string (G… or C…) | Final payout recipient |
+| `total_paid` | string (stroops) | Total amount paid across installments |
+| `installment_count` | u32 | Number of installments used |
+| `at_ledger` | u32 (ledger) | Ledger when the claim became fully paid |
+
+---
+
+### `claim_evidence_updated` — claim evidence replaced
+
+Emitted when the claimant replaces evidence before any votes are cast.
+
+**Topics:** `("niffyinsure", "claim_evidence_updated", claim_id: u64)`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `policy_id` | u32 | Per-holder policy identifier |
+| `evidence_hashes` | string[] | SHA-256 digests (32 bytes each); on-chain commitment only |
+| `at_ledger` | u32 (ledger) | Ledger when evidence was updated |
+
+---
+
+### `payout_recipient_warning` — contract recipient payout warning
+
+Emitted when payout is sent to a contract address so indexers can surface a
+recipient-risk warning.
+
+**Topics:** `("niffyinsure", "payout_recipient_warning", claim_id: u64)`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `recipient` | string (C…) | Contract address receiving payout |
+| `asset` | string (C…) | Asset contract used for payout |
+| `at_ledger` | u32 (ledger) | Ledger when the warning was emitted |
+
+---
+
 ### `claim_withdrawn` — claim withdrawn by claimant
 
 Emitted when the claimant withdraws their own claim before any votes are cast.
@@ -306,6 +387,19 @@ May be emitted with a delay relative to the actual expiry ledger if no keeper ca
 
 ---
 
+### `policy_transferred` — policy ownership transferred
+
+Emitted when `transfer_policy` moves policy ownership from one holder to another.
+
+**Topics:** `("niffyinsure", "policy_transferred", policy_id: u32, old_holder: Address, new_holder: Address)`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `version` | u32 | Event schema version |
+| `at_ledger` | u32 (ledger) | Ledger when ownership transferred |
+
+---
+
 ### `BeneficiaryUpdated` — payout beneficiary changed
 
 Emitted when a holder sets or changes their designated payout beneficiary.
@@ -342,6 +436,7 @@ Emitted when a holder sets or changes their designated payout beneficiary.
 | `adm_drn` | `(NS, "adm_drn", admin)` | `recipient`, `amount` (stroops) |
 | `quorum_updated` | `("niffyinsure", "quorum_updated")` | `old_bps: u32`, `new_bps: u32` |
 | `GracePeriodUpdated` | `("niffyinsure", "GracePeriodUpdated", admin)` | `old_ledgers: u32`, `new_ledgers: u32` |
+| `asset_premium_table_set` | `("niffyinsure", "asset_premium_table_set", asset)` | `table_version: u32`, `cleared: u32` |
 
 ### `quorum_updated` — DAO quorum threshold changed
 
@@ -356,6 +451,21 @@ Emitted when a holder sets or changes their designated payout beneficiary.
 ```
 
 Does not retroactively affect claims already in `Processing`.
+
+---
+
+### `asset_premium_table_set` — asset-specific premium table changed
+
+Emitted by `admin_set_asset_premium_table` when an asset-specific premium table
+is set or cleared. `cleared = 1` means the asset falls back to the global table.
+
+**Topics:** `("niffyinsure", "asset_premium_table_set", asset: Address)`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `version` | u32 | Event schema version |
+| `table_version` | u32 | Stored multiplier table version, or `0` when cleared |
+| `cleared` | u32 | `1` when removed, `0` when stored |
 
 ---
 

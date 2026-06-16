@@ -1,7 +1,7 @@
 import { Calculator, Shield } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { QuoteForm } from '@/components/quote/quote-form'
+import { QuoteExperience } from '@/components/quote/quote-form'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function QuotePage() {
@@ -44,7 +44,7 @@ export default function QuotePage() {
         </Card>
       </div>
 
-      <QuoteForm />
+      <QuoteExperience />
     </div>
   )
 }

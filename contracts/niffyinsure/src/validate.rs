@@ -475,7 +475,7 @@ pub fn check_multiplier_table_shape(table: &MultiplierTable) -> Result<(), Error
 /// Validate evidence URL format: must be `ipfs://` or match an allowlisted gateway prefix.
 pub fn validate_evidence_url(env: &Env, url: &String) -> Result<(), Error> {
     let url_str = url.to_xdr(env);
-    
+
     // Check for ipfs:// prefix
     if url_str.len() >= 7 {
         let prefix = &url_str[..7];
@@ -483,7 +483,7 @@ pub fn validate_evidence_url(env: &Env, url: &String) -> Result<(), Error> {
             return Ok(());
         }
     }
-    
+
     // Check against allowlisted gateway prefixes
     let gateways = crate::storage::get_gateway_allowlist(env);
     for gateway in gateways.iter() {
@@ -495,7 +495,7 @@ pub fn validate_evidence_url(env: &Env, url: &String) -> Result<(), Error> {
             }
         }
     }
-    
+
     Err(Error::InvalidEvidenceUrl)
 }
 
@@ -508,7 +508,10 @@ mod evidence_url_validation_tests {
     fn ipfs_prefix_is_valid() {
         let env = Env::default();
         let contract_id = env.register(crate::NiffyInsure, ());
-        let url = String::from_str(&env, "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi");
+        let url = String::from_str(
+            &env,
+            "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+        );
         env.as_contract(&contract_id, || {
             assert!(validate_evidence_url(&env, &url).is_ok());
         });
@@ -574,4 +577,3 @@ mod evidence_url_validation_tests {
         });
     }
 }
-

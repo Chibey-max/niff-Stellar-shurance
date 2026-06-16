@@ -101,6 +101,24 @@ export class EvidenceProxyService {
       res.end();
     } catch (err) {
       this.logger.error(`Evidence proxy failed: ${err}`);
+      if (err instanceof ForbiddenException || err instanceof NotFoundException) {
+        await this.writeAudit(
+          walletAddress,
+          err instanceof ForbiddenException
+            ? 'evidence_download_forbidden'
+            : 'evidence_download_not_found',
+          {
+            claimId,
+            index,
+            error: String(err),
+          },
+        );
+        if (!res.headersSent) {
+          res.status(err.getStatus()).json({ message: err.message });
+        }
+        throw err;
+      }
+
       await this.writeAudit(walletAddress, 'evidence_download_failed', {
         claimId,
         index,

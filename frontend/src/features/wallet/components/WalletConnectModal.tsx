@@ -2,9 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { Wallet, AlertTriangle } from 'lucide-react'
-import { FREIGHTER_ID } from '@creit.tech/stellar-wallets-kit/modules/freighter'
-import { XBULL_ID } from '@creit.tech/stellar-wallets-kit/modules/xbull'
-import { LOBSTR_ID } from '@creit.tech/stellar-wallets-kit/modules/lobstr'
+import { FREIGHTER_ID, XBULL_ID, LOBSTR_ID } from '@creit.tech/stellar-wallets-kit'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,

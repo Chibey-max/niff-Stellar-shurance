@@ -3,7 +3,7 @@
 #![cfg(test)]
 
 use niffyinsure::{
-    types::{AgeBand, CoverageTier, PolicyType, PROTOCOL_FEE_BPS_MAX, RegionTier},
+    types::{AgeBand, CoverageTier, PolicyType, RegionTier, PROTOCOL_FEE_BPS_MAX},
     validate::Error as ValidateError,
     NiffyInsureClient,
 };
@@ -68,8 +68,7 @@ fn zero_fee_sends_full_premium_to_treasury() {
     client.admin_set_fee_recipient(&recipient);
     client.admin_set_protocol_fee_bps(&0u32);
 
-    let quote = client
-        .generate_premium_for_asset(
+    let quote = client.generate_premium_for_asset(
         &niffyinsure::types::RiskInput {
             region: RegionTier::Medium,
             age_band: AgeBand::Adult,
@@ -87,7 +86,10 @@ fn zero_fee_sends_full_premium_to_treasury() {
     assert_eq!(client.get_protocol_fee_bps(), 0);
     assert_eq!(client.get_fee_recipient(), recipient);
     assert_eq!(client.get_treasury_balance(), premium);
-    assert_eq!(token::StellarAssetClient::new(&env, &token).balance(&recipient), 0);
+    assert_eq!(
+        token::StellarAssetClient::new(&env, &token).balance(&recipient),
+        0
+    );
 }
 
 #[test]
@@ -117,7 +119,10 @@ fn non_zero_fee_splits_premium_between_treasury_and_recipient() {
 
     initiate_policy(&client, &holder, &token);
 
-    assert_eq!(token::StellarAssetClient::new(&env, &token).balance(&recipient), fee);
+    assert_eq!(
+        token::StellarAssetClient::new(&env, &token).balance(&recipient),
+        fee
+    );
     assert_eq!(client.get_treasury_balance(), premium - fee);
 }
 
@@ -148,7 +153,10 @@ fn max_fee_is_allowed_and_calculated_correctly() {
 
     initiate_policy(&client, &holder, &token);
 
-    assert_eq!(token::StellarAssetClient::new(&env, &token).balance(&recipient), fee);
+    assert_eq!(
+        token::StellarAssetClient::new(&env, &token).balance(&recipient),
+        fee
+    );
     assert_eq!(client.get_treasury_balance(), premium - fee);
 }
 
@@ -182,8 +190,14 @@ fn fee_recipient_update_is_used_for_subsequent_premiums() {
     initiate_policy(&client, &holder, &token);
 
     assert_eq!(client.get_fee_recipient(), second_recipient);
-    assert_eq!(token::StellarAssetClient::new(&env, &token).balance(&first_recipient), 0);
-    assert_eq!(token::StellarAssetClient::new(&env, &token).balance(&second_recipient), fee);
+    assert_eq!(
+        token::StellarAssetClient::new(&env, &token).balance(&first_recipient),
+        0
+    );
+    assert_eq!(
+        token::StellarAssetClient::new(&env, &token).balance(&second_recipient),
+        fee
+    );
 }
 
 #[test]

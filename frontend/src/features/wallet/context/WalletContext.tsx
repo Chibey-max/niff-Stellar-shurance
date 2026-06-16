@@ -8,10 +8,16 @@ import React, {
   useRef,
   useState,
 } from 'react'
-import { StellarWalletsKit, Networks, KitEventType } from '@creit.tech/stellar-wallets-kit'
-import { FreighterModule, FREIGHTER_ID } from '@creit.tech/stellar-wallets-kit/modules/freighter'
-import { xBullModule, XBULL_ID } from '@creit.tech/stellar-wallets-kit/modules/xbull'
-import { LobstrModule, LOBSTR_ID } from '@creit.tech/stellar-wallets-kit/modules/lobstr'
+import {
+  StellarWalletsKit,
+  WalletNetwork,
+  FreighterModule,
+  FREIGHTER_ID,
+  xBullModule,
+  XBULL_ID,
+  LobstrModule,
+  LOBSTR_ID,
+} from '@creit.tech/stellar-wallets-kit'
 import { LAST_WALLET_ID_STORAGE_KEY } from '../constants'
 import type { AppNetwork } from '@/config/networkManifest'
 import { passphraseToAppNetwork } from '@/config/networkManifest'
@@ -55,15 +61,16 @@ interface WalletSession {
   publicKey: string;
 }
 
-function kitNetworkFor(app: AppNetwork): Networks {
-  if (app === 'mainnet') return Networks.PUBLIC
-  if (app === 'futurenet') return Networks.FUTURENET
-  return Networks.TESTNET
+function kitNetworkFor(app: AppNetwork): WalletNetwork {
+  if (app === 'mainnet') return WalletNetwork.PUBLIC
+  if (app === 'futurenet') return WalletNetwork.FUTURENET
+  return WalletNetwork.TESTNET
 }
 
-function initKit(appNetwork: AppNetwork) {
-  StellarWalletsKit.init({
+function createKit(appNetwork: AppNetwork, selectedWalletId: WalletId = FREIGHTER_ID): StellarWalletsKit {
+  return new StellarWalletsKit({
     network: kitNetworkFor(appNetwork),
+    selectedWalletId,
     modules: [new FreighterModule(), new xBullModule(), new LobstrModule()],
   })
 }
@@ -80,42 +87,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     return (localStorage.getItem(LS_NETWORK_KEY) as AppNetwork) ?? 'testnet'
   })
 
-  const kitInitialized = useRef(false)
+  const kitRef = useRef<StellarWalletsKit | null>(null)
 
   // Initialize kit once on mount
   useEffect(() => {
-    if (kitInitialized.current) return
-    kitInitialized.current = true
-    initKit(appNetwork)
-
-    // Listen for state updates from the kit (address changes, wallet switches)
-    StellarWalletsKit.on(KitEventType.STATE_UPDATED, async () => {
-      try {
-        const { address: addr } = await StellarWalletsKit.getAddress()
-        setAddress(addr ?? null)
-        if (addr) {
-          setConnectionStatus('connected')
-          await refreshWalletNetwork()
-        } else {
-          setConnectionStatus('disconnected')
-          setActiveWalletId(null)
-          setWalletNetwork(null)
-          setWalletNetworkResolution({ status: 'idle' })
-          localStorage.removeItem(LS_WALLET_SESSION)
-        }
-      } catch {
-        setAddress(null)
-      }
-    })
-
-    StellarWalletsKit.on(KitEventType.DISCONNECT, () => {
-      setAddress(null)
-      setConnectionStatus('disconnected')
-      setActiveWalletId(null)
-      setWalletNetwork(null)
-      setWalletNetworkResolution({ status: 'idle' })
-      localStorage.removeItem(LS_WALLET_SESSION)
-    })
+    if (!kitRef.current) kitRef.current = createKit(appNetwork)
 
     // Auto-reconnect last wallet (Silent reconnect on app mount)
     const sessionRaw = localStorage.getItem(LS_WALLET_SESSION)
@@ -132,8 +108,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   async function reconnect(session: WalletSession) {
     try {
-      StellarWalletsKit.setWallet(session.walletId)
-      const { address: addr } = await StellarWalletsKit.getAddress()
+      const kit = kitRef.current ?? createKit(appNetwork, session.walletId)
+      kitRef.current = kit
+      kit.setWallet(session.walletId)
+      const { address: addr } = await kit.getAddress()
       
       if (addr) {
         // Validate reconnected public key matches stored value (Requirement: clear if mismatched)
@@ -161,8 +139,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   async function refreshWalletNetwork() {
     try {
-      const { network } = await StellarWalletsKit.getNetwork()
-      const appNet = passphraseToAppNetwork(network)
+      const { network, networkPassphrase } = await kitRef.current!.getNetwork()
+      const appNet = passphraseToAppNetwork(networkPassphrase ?? network)
       setWalletNetwork(appNet)
       setWalletNetworkResolution({ status: 'ok', mappedNetwork: appNet })
     } catch {
@@ -174,8 +152,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const connect = useCallback(async (walletId: WalletId) => {
     setConnectionStatus('connecting')
     try {
-      StellarWalletsKit.setWallet(walletId)
-      const { address: addr } = await StellarWalletsKit.getAddress()
+      const kit = kitRef.current ?? createKit(appNetwork, walletId)
+      kitRef.current = kit
+      kit.setWallet(walletId)
+      const { address: addr } = await kit.getAddress()
       
       if (addr) {
         setAddress(addr)
@@ -204,10 +184,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       throw err
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [appNetwork])
 
   const disconnect = useCallback(async () => {
-    await StellarWalletsKit.disconnect()
+    await kitRef.current?.disconnect()
     setAddress(null)
     setConnectionStatus('disconnected')
     setActiveWalletId(null)
@@ -219,7 +199,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const signTransaction = useCallback(async (xdr: string): Promise<string> => {
     await refreshWalletNetwork()
     try {
-      const { signedTxXdr } = await StellarWalletsKit.signTransaction(xdr)
+      const { signedTxXdr } = await kitRef.current!.signTransaction(xdr, {
+        address: address ?? undefined,
+        networkPassphrase: kitNetworkFor(appNetwork),
+      })
       await refreshWalletNetwork()
       return signedTxXdr
     } catch (err: unknown) {
@@ -229,18 +212,18 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       }
       throw err
     }
-  }, [])
+  }, [address, appNetwork])
 
   const setAppNetwork = useCallback((network: AppNetwork) => {
     setAppNetworkState(network)
     localStorage.setItem(LS_NETWORK_KEY, network)
-    StellarWalletsKit.setNetwork(kitNetworkFor(network))
+    kitRef.current = createKit(network, activeWalletId ?? FREIGHTER_ID)
     // Re-check wallet network after app network change
     if (connectionStatus === 'connected') {
       refreshWalletNetwork()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connectionStatus])
+  }, [activeWalletId, connectionStatus])
 
   const networkMismatch = computeNetworkMismatch(
     connectionStatus,

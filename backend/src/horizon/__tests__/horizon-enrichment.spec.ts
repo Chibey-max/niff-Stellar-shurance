@@ -44,7 +44,7 @@ describe('HorizonService — enrichment', () => {
     service = module.get(HorizonService);
 
     // Mock Horizon fetch
-    jest.spyOn(service as never, 'fetchFromHorizon').mockResolvedValue({
+    jest.spyOn(service as unknown as { fetchFromHorizon: jest.Mock }, 'fetchFromHorizon').mockResolvedValue({
       _embedded: { records: [horizonRecord] },
       _links: {},
     });

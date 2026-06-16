@@ -1,26 +1,27 @@
-import { IsEmail, IsString, MinLength, MaxLength } from 'class-validator';
+import { IsEmail, IsEnum, IsString, MaxLength, MinLength } from 'class-validator';
+import { TicketStatus } from '@prisma/client';
 
 export class CreateSupportTicketDto {
   @IsEmail()
-  email: string;
+  email!: string;
 
   @IsString()
   @MinLength(5)
   @MaxLength(200)
-  subject: string;
+  subject!: string;
 
   @IsString()
   @MinLength(10)
   @MaxLength(5000)
-  message: string;
+  message!: string;
 
   @IsString()
-  captchaToken: string;
+  captchaToken!: string;
 }
 
 export class UpdateSupportTicketDto {
-  @IsString()
-  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  @IsEnum(TicketStatus)
+  status!: TicketStatus;
 
   @IsString()
   @MaxLength(500)
@@ -28,12 +29,12 @@ export class UpdateSupportTicketDto {
 }
 
 export class SupportTicketResponseDto {
-  id: number;
-  email: string;
-  subject: string;
-  message: string;
-  status: 'open' | 'in_progress' | 'resolved' | 'closed';
-  ipHash: string;
-  createdAt: Date;
-  updatedAt: Date;
+  id!: string;
+  email!: string;
+  subject!: string;
+  message!: string;
+  status!: TicketStatus;
+  ipHash!: string | null;
+  createdAt!: Date;
+  updatedAt!: Date;
 }

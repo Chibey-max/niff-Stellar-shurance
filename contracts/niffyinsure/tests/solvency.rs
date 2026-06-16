@@ -3,9 +3,7 @@
 #![cfg(test)]
 
 use niffyinsure::{
-    types::{
-        AgeBand, CoverageTier, MIN_SOLVENCY_RATIO_BPS_MAX, PolicyType, RegionTier,
-    },
+    types::{AgeBand, CoverageTier, PolicyType, RegionTier, MIN_SOLVENCY_RATIO_BPS_MAX},
     validate::Error as ValidateError,
     NiffyInsureClient, PolicyError,
 };

@@ -12,7 +12,11 @@ const mockPatch = notificationsApi.patchNotificationPreferences as jest.MockedFu
   typeof notificationsApi.patchNotificationPreferences
 >
 
-const PREFS = { renewalRemindersEnabled: true, claimUpdatesEnabled: true }
+const PREFS = {
+  renewalRemindersEnabled: true,
+  claimUpdatesEnabled: true,
+  voteRemindersEnabled: true,
+}
 const ADDRESS = 'GABC1234'
 const JWT = 'test-jwt'
 
@@ -48,7 +52,7 @@ describe('useNotificationSync', () => {
     )
     await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1))
 
-    const newPrefs = { renewalRemindersEnabled: false, claimUpdatesEnabled: true }
+    const newPrefs = { ...PREFS, renewalRemindersEnabled: false }
     rerender({ prefs: newPrefs })
     await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(2))
     expect(mockPatch).toHaveBeenLastCalledWith(ADDRESS, newPrefs, JWT)

@@ -14,17 +14,9 @@ const FIXTURE_CLAIMS_BY_STATUS = [
 
 describe('AdminStatsService', () => {
   let service: AdminStatsService;
-  let mockPrisma: Record<string, jest.Mock>;
   let mockRedis: Record<string, jest.Mock>;
 
   beforeEach(async () => {
-    mockPrisma = {
-      'policy.count': jest.fn(),
-      'claim.count': jest.fn(),
-      'claim.groupBy': jest.fn(),
-      'ledgerCursor.findFirst': jest.fn(),
-    };
-
     const prismaProxy = {
       policy: {
         count: (args: unknown) => {

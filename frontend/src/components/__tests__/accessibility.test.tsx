@@ -18,7 +18,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import { StatusBadge } from '@/components/ui/status-badge'
-import { NetworkBanner } from '@/components/ui/network-banner'
 import { Pagination } from '@/components/ui/pagination'
 
 expect.extend(toHaveNoViolations)

@@ -35,9 +35,7 @@ fn setup() -> TestEnv<'static> {
 
     let admin = Address::generate(&env);
     let issuer = Address::generate(&env);
-    let default_token = env
-        .register_stellar_asset_contract_v2(issuer)
-        .address();
+    let default_token = env.register_stellar_asset_contract_v2(issuer).address();
     let default_token_admin = token::StellarAssetClient::new(&env, &default_token);
 
     client.initialize(&admin, &default_token);
@@ -108,13 +106,19 @@ fn asset_specific_table_returns_different_premium() {
     let base = 10_000_000i128;
 
     // Premium with global default (region Low = 8_500).
-    let default_quote = t.client.generate_premium_for_asset(&input, &base, &false, &t.default_token);
+    let default_quote =
+        t.client
+            .generate_premium_for_asset(&input, &base, &false, &t.default_token);
 
     // Set an asset-specific table for token_b with a higher Low multiplier (20_000 = 2×).
     let asset_table = make_table(&t.env, 20_000, 1);
-    t.client.admin_set_asset_premium_table(&token_b, &Some(asset_table)).unwrap();
+    t.client
+        .admin_set_asset_premium_table(&token_b, &Some(asset_table))
+        .unwrap();
 
-    let asset_quote = t.client.generate_premium_for_asset(&input, &base, &false, &token_b);
+    let asset_quote = t
+        .client
+        .generate_premium_for_asset(&input, &base, &false, &token_b);
 
     assert!(
         asset_quote.total_premium > default_quote.total_premium,
@@ -140,11 +144,12 @@ fn fallback_to_default_when_no_asset_table() {
     let base = 10_000_000i128;
 
     let default_quote = t.client.generate_premium(&input, &base, &false);
-    let fallback_quote = t.client.generate_premium_for_asset(&input, &base, &false, &token_b);
+    let fallback_quote = t
+        .client
+        .generate_premium_for_asset(&input, &base, &false, &token_b);
 
     assert_eq!(
-        default_quote.total_premium,
-        fallback_quote.total_premium,
+        default_quote.total_premium, fallback_quote.total_premium,
         "fallback must produce the same premium as the global default"
     );
 }
@@ -157,7 +162,9 @@ fn set_table_reverts_for_non_allowlisted_asset() {
     // non_listed is NOT allowlisted.
 
     let table = make_table(&t.env, 10_000, 1);
-    let result = t.client.try_admin_set_asset_premium_table(&non_listed, &Some(table));
+    let result = t
+        .client
+        .try_admin_set_asset_premium_table(&non_listed, &Some(table));
 
     assert!(
         result.is_err(),
@@ -175,18 +182,24 @@ fn clearing_asset_table_reverts_to_default() {
 
     // Set a distinctive table.
     let asset_table = make_table(&t.env, 20_000, 1);
-    t.client.admin_set_asset_premium_table(&token_b, &Some(asset_table)).unwrap();
+    t.client
+        .admin_set_asset_premium_table(&token_b, &Some(asset_table))
+        .unwrap();
     assert!(t.client.get_asset_premium_table(&token_b).is_some());
 
     // Clear it.
-    t.client.admin_set_asset_premium_table(&token_b, &None).unwrap();
+    t.client
+        .admin_set_asset_premium_table(&token_b, &None)
+        .unwrap();
     assert!(t.client.get_asset_premium_table(&token_b).is_none());
 
     // Premium should now match the global default.
     let input = default_input();
     let base = 10_000_000i128;
     let default_quote = t.client.generate_premium(&input, &base, &false);
-    let after_clear = t.client.generate_premium_for_asset(&input, &base, &false, &token_b);
+    let after_clear = t
+        .client
+        .generate_premium_for_asset(&input, &base, &false, &token_b);
     assert_eq!(default_quote.total_premium, after_clear.total_premium);
 }
 
@@ -202,13 +215,19 @@ fn initiate_policy_uses_asset_specific_table() {
     let input = default_input();
 
     // Premium with global default for token_b (no asset table yet).
-    let default_quote = t.client.generate_premium_for_asset(&input, &base, &false, &token_b);
+    let default_quote = t
+        .client
+        .generate_premium_for_asset(&input, &base, &false, &token_b);
 
     // Set a higher-multiplier table for token_b.
     let asset_table = make_table(&t.env, 20_000, 1); // Low = 2× vs default 0.85×
-    t.client.admin_set_asset_premium_table(&token_b, &Some(asset_table)).unwrap();
+    t.client
+        .admin_set_asset_premium_table(&token_b, &Some(asset_table))
+        .unwrap();
 
-    let asset_quote = t.client.generate_premium_for_asset(&input, &base, &false, &token_b);
+    let asset_quote = t
+        .client
+        .generate_premium_for_asset(&input, &base, &false, &token_b);
     assert!(asset_quote.total_premium > default_quote.total_premium);
 
     // Fund holder with enough token_b to cover the higher premium.
@@ -239,8 +258,7 @@ fn initiate_policy_uses_asset_specific_table() {
 
     // The stored premium must match the asset-specific quote.
     assert_eq!(
-        policy.premium,
-        asset_quote.total_premium,
+        policy.premium, asset_quote.total_premium,
         "policy premium must use the asset-specific table"
     );
     assert!(
@@ -260,16 +278,24 @@ fn two_assets_have_independent_tables() {
     t.client.set_allowed_asset(&token_c, &true);
 
     let table_b = make_table(&t.env, 20_000, 1); // high multiplier
-    let table_c = make_table(&t.env, 6_000, 1);  // low multiplier
+    let table_c = make_table(&t.env, 6_000, 1); // low multiplier
 
-    t.client.admin_set_asset_premium_table(&token_b, &Some(table_b)).unwrap();
-    t.client.admin_set_asset_premium_table(&token_c, &Some(table_c)).unwrap();
+    t.client
+        .admin_set_asset_premium_table(&token_b, &Some(table_b))
+        .unwrap();
+    t.client
+        .admin_set_asset_premium_table(&token_c, &Some(table_c))
+        .unwrap();
 
     let input = default_input();
     let base = 10_000_000i128;
 
-    let quote_b = t.client.generate_premium_for_asset(&input, &base, &false, &token_b);
-    let quote_c = t.client.generate_premium_for_asset(&input, &base, &false, &token_c);
+    let quote_b = t
+        .client
+        .generate_premium_for_asset(&input, &base, &false, &token_b);
+    let quote_c = t
+        .client
+        .generate_premium_for_asset(&input, &base, &false, &token_c);
 
     assert!(
         quote_b.total_premium > quote_c.total_premium,
@@ -277,11 +303,14 @@ fn two_assets_have_independent_tables() {
     );
 
     // Clearing token_b's table does not affect token_c.
-    t.client.admin_set_asset_premium_table(&token_b, &None).unwrap();
-    let quote_c_after = t.client.generate_premium_for_asset(&input, &base, &false, &token_c);
+    t.client
+        .admin_set_asset_premium_table(&token_b, &None)
+        .unwrap();
+    let quote_c_after = t
+        .client
+        .generate_premium_for_asset(&input, &base, &false, &token_c);
     assert_eq!(
-        quote_c.total_premium,
-        quote_c_after.total_premium,
+        quote_c.total_premium, quote_c_after.total_premium,
         "token_c premium must be unchanged after clearing token_b table"
     );
 }
@@ -294,21 +323,29 @@ fn asset_table_version_must_increase() {
     t.client.set_allowed_asset(&token_b, &true);
 
     let table_v1 = make_table(&t.env, 10_000, 1);
-    t.client.admin_set_asset_premium_table(&token_b, &Some(table_v1)).unwrap();
+    t.client
+        .admin_set_asset_premium_table(&token_b, &Some(table_v1))
+        .unwrap();
 
     // Same version should fail.
     let table_v1_again = make_table(&t.env, 11_000, 1);
-    let result = t.client.try_admin_set_asset_premium_table(&token_b, &Some(table_v1_again));
+    let result = t
+        .client
+        .try_admin_set_asset_premium_table(&token_b, &Some(table_v1_again));
     assert!(result.is_err(), "same version must be rejected");
 
     // Lower version should fail.
     let table_v0 = make_table(&t.env, 11_000, 0);
-    let result = t.client.try_admin_set_asset_premium_table(&token_b, &Some(table_v0));
+    let result = t
+        .client
+        .try_admin_set_asset_premium_table(&token_b, &Some(table_v0));
     assert!(result.is_err(), "lower version must be rejected");
 
     // Higher version should succeed.
     let table_v2 = make_table(&t.env, 11_000, 2);
-    t.client.admin_set_asset_premium_table(&token_b, &Some(table_v2)).unwrap();
+    t.client
+        .admin_set_asset_premium_table(&token_b, &Some(table_v2))
+        .unwrap();
     let stored = t.client.get_asset_premium_table(&token_b).unwrap();
     assert_eq!(stored.version, 2);
 }

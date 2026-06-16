@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Stepper, type Step } from '@/components/ui/stepper'
@@ -25,7 +24,6 @@ function buildSteps(current: WizardStep): Step[] {
 }
 
 export function PurchaseWizard() {
-  const router = useRouter()
   const { hasDraft, saveDraft, loadDraft, clearDraft } = useDraftPersistence<WizardDraft>(
     WIZARD_DRAFT_KEY,
     WIZARD_SCHEMA_VERSION,

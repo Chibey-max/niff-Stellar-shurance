@@ -50,15 +50,16 @@ fn file_with_evidence(
     count: u32,
 ) -> Result<u64, niffyinsure::validate::Error> {
     let ev = make_evidence(env, count);
-    client.try_file_claim(
-        holder,
-        &1u32,
-        &100_000,
-        &String::from_str(env, "test"),
-        &ev,
-        &None,
-    )
-    .map_err(|e| e.unwrap())
+    client
+        .try_file_claim(
+            holder,
+            &1u32,
+            &100_000,
+            &String::from_str(env, "test"),
+            &ev,
+            &None,
+        )
+        .map_err(|e| e.unwrap())
 }
 
 fn seed(client: &NiffyInsureClient, holder: &Address, end_ledger: u32) {
@@ -92,7 +93,10 @@ fn zero_evidence_reverts_when_min_is_one() {
     seed(&client, &holder, 500_000);
     let result = file_with_evidence(&client, &holder, &env, 0);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), niffyinsure::validate::Error::InsufficientEvidence);
+    assert_eq!(
+        result.unwrap_err(),
+        niffyinsure::validate::Error::InsufficientEvidence
+    );
 }
 
 #[test]
@@ -104,7 +108,10 @@ fn below_min_reverts() {
     // 2 < 3 → InsufficientEvidence
     let result = file_with_evidence(&client, &holder, &env, 2);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), niffyinsure::validate::Error::InsufficientEvidence);
+    assert_eq!(
+        result.unwrap_err(),
+        niffyinsure::validate::Error::InsufficientEvidence
+    );
 }
 
 #[test]
@@ -133,7 +140,10 @@ fn above_max_reverts_with_too_many_image_urls() {
     seed(&client, &holder, 500_000);
     let result = file_with_evidence(&client, &holder, &env, 6);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), niffyinsure::validate::Error::TooManyImageUrls);
+    assert_eq!(
+        result.unwrap_err(),
+        niffyinsure::validate::Error::TooManyImageUrls
+    );
 }
 
 // ── Admin setter ──────────────────────────────────────────────────────────────

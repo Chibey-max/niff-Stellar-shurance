@@ -1,9 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
-import { Suspense } from "react";
 
 import "./globals.css";
-import { AnalyticsPageView } from "@/components/analytics-page-view";
 import { AnalyticsScript } from "@/components/analytics-script";
 import { CookieConsentBanner } from "@/components/cookie-consent-banner";
 import { ThemeProvider } from "@/components/theme-provider";

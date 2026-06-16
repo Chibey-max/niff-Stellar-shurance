@@ -40,7 +40,7 @@ jest.mock('@/lib/api/quote', () => ({
 import { QuoteExperience } from '../../../components/quote/quote-form'
 import { renderHook } from '@testing-library/react'
 import { useQuote } from '../useQuote'
-import { QuoteFormSchema } from '@/lib/schemas/quote'
+import { QuoteFormSchema, type QuoteFormData } from '@/lib/schemas/quote'
 
 const MOCK_QUOTE = {
   premiumStroops: '10000000',
@@ -57,6 +57,8 @@ const VALID_INPUTS = {
   age: 30,
   risk_score: 5,
 }
+
+type QuoteHookInputs = Partial<QuoteFormData> | null
 
 // "Coverage Tier" label contains "age" in "coverage" — use exact strings to avoid ambiguity
 function fillForm() {
@@ -148,8 +150,8 @@ describe('useQuote hook', () => {
     mockFetchQuote.mockResolvedValue(MOCK_QUOTE)
     // Start with null, then switch to valid inputs to trigger debounce
     const { rerender } = renderHook(
-      ({ inputs }: { inputs: typeof VALID_INPUTS | null }) => useQuote(inputs, 400),
-      { initialProps: { inputs: null } },
+      ({ inputs }: { inputs: QuoteHookInputs }) => useQuote(inputs, 400),
+      { initialProps: { inputs: null as QuoteHookInputs } },
     )
     rerender({ inputs: VALID_INPUTS })
     // Advance less than debounce — API must not be called
@@ -217,8 +219,8 @@ describe('useQuote hook', () => {
     })
 
     const { result, rerender } = renderHook(
-      ({ inputs }: { inputs: typeof VALID_INPUTS | null }) => useQuote(inputs, 400),
-      { initialProps: { inputs: VALID_INPUTS } },
+      ({ inputs }: { inputs: QuoteHookInputs }) => useQuote(inputs, 400),
+      { initialProps: { inputs: VALID_INPUTS as QuoteHookInputs } },
     )
 
     // Advance past debounce so fetch is initiated
@@ -234,8 +236,8 @@ describe('useQuote hook', () => {
   it('resets to idle when inputs become incomplete', async () => {
     mockFetchQuote.mockResolvedValue(MOCK_QUOTE)
     const { result, rerender } = renderHook(
-      ({ inputs }: { inputs: Partial<typeof VALID_INPUTS> | null }) => useQuote(inputs, 400),
-      { initialProps: { inputs: VALID_INPUTS } },
+      ({ inputs }: { inputs: QuoteHookInputs }) => useQuote(inputs, 400),
+      { initialProps: { inputs: VALID_INPUTS as QuoteHookInputs } },
     )
 
     // First advance to trigger the fetch

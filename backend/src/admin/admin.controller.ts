@@ -33,12 +33,12 @@ import { BackfillDto } from './dto/backfill.dto';
 import { AuditQueryDto } from './dto/audit-query.dto';
 import { FeatureFlagDto } from './dto/feature-flag.dto';
 import { SetRateLimitDto, EnableOverrideDto } from './dto/rate-limit.dto';
-import { BulkUpdateClaimsDto, BULK_UPDATE_MAX_BATCH } from './dto/bulk-update-claims.dto';
 import { PrivacyService, PrivacyRequestType } from '../maintenance/privacy.service';
 import { RateLimitService } from '../rate-limit/rate-limit.service';
 import { QueueMonitorService } from '../queues/queue-monitor.service';
 import { SolvencyMonitoringService } from '../maintenance/solvency-monitoring.service';
-import { AdminTenantsService, CreateTenantDto, UpdateTenantDto } from './admin-tenants.service';
+import { AdminTenantsService } from './admin-tenants.service';
+import { SorobanService } from '../rpc/soroban.service';
 
 class PrivacyRequestDto {
   @IsString() subjectWalletAddress!: string;
@@ -82,6 +82,8 @@ export class AdminController {
     private readonly configService: ConfigService,
     private readonly solvencyMonitoringService: SolvencyMonitoringService,
     private readonly tenantsService: AdminTenantsService,
+    private readonly adminStatsService: AdminStatsService,
+    private readonly sorobanService: SorobanService,
   ) {}
 
   /**
@@ -330,7 +332,7 @@ export class AdminController {
         oldStatus: before.status,
         newStatus: dto.newStatus,
         reason,
-        requestBody: dto,
+        requestBody: { newStatus: dto.newStatus, reason: dto.reason },
       },
       ipAddress: req.ip,
     });
@@ -350,6 +352,17 @@ export class AdminController {
       });
 
     return { claimId, oldStatus: before.status, newStatus: updated.status, status: 'updated' };
+  }
+
+  private requireElevatedScope(req: AdminRequest): void {
+    const scopes = new Set([
+      ...(req.user?.scopes ?? []),
+      ...(req.user?.scope?.split(' ') ?? []),
+      ...(req.adminIdentity?.scopes ?? []),
+    ]);
+    if (!scopes.has('admin:claims:override')) {
+      throw new ForbiddenException('admin:claims:override scope required');
+    }
   }
 
   /**

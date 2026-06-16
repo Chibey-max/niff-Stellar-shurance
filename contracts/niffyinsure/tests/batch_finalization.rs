@@ -28,11 +28,7 @@ fn seed(client: &NiffyInsureClient, holder: &Address, end_ledger: u32) {
     client.test_seed_policy(holder, &1u32, &1_000_000i128, &end_ledger);
 }
 
-fn file(
-    env: &Env,
-    client: &NiffyInsureClient,
-    holder: &Address,
-) -> u64 {
+fn file(env: &Env, client: &NiffyInsureClient, holder: &Address) -> u64 {
     let details = String::from_str(env, "batch test");
     let urls = vec![env];
     client.file_claim(holder, &1u32, &100_000i128, &details, &urls, &None)
@@ -89,14 +85,8 @@ fn batch_processes_eligible_skips_ineligible() {
     assert_eq!(processed, 2);
     assert_eq!(skipped, 1);
 
-    assert_ne!(
-        client.get_claim(&cid1).status,
-        ClaimStatus::Processing
-    );
-    assert_ne!(
-        client.get_claim(&cid2).status,
-        ClaimStatus::Processing
-    );
+    assert_ne!(client.get_claim(&cid1).status, ClaimStatus::Processing);
+    assert_ne!(client.get_claim(&cid2).status, ClaimStatus::Processing);
 }
 
 // ── Already-finalized claims are skipped without reverting ───────────────────

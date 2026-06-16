@@ -712,11 +712,7 @@ pub fn set_max_weight_cap(env: &Env, new_cap: i128) -> Result<(), AdminError> {
     }
     let old_cap = storage::get_max_weight_cap(env);
     storage::set_max_weight_cap(env, new_cap);
-    MaxWeightCapUpdated {
-        old_cap,
-        new_cap,
-    }
-    .publish(env);
+    MaxWeightCapUpdated { old_cap, new_cap }.publish(env);
     Ok(())
 }
 

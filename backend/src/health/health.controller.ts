@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, Res } from '@nestjs/common';
+import { Controller, Get, Res } from '@nestjs/common';
 import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PrismaHealthIndicator } from './prisma.health';

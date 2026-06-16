@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { Metadata } from 'next'
 import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -66,7 +65,6 @@ export default function NotificationsPage() {
   const { jwt } = useAuth()
   const { address } = useWallet()
 
-  const [prefs, setPrefs] = useState<NotificationPreferences | null>(null)
   const [draft, setDraft] = useState<NotificationPreferences | null>(null)
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
@@ -82,7 +80,6 @@ export default function NotificationsPage() {
     setFetchError(null)
     getNotificationPreferences(address, jwt)
       .then((p) => {
-        setPrefs(p)
         setDraft(p)
       })
       .catch((err: unknown) => {
@@ -103,7 +100,6 @@ export default function NotificationsPage() {
     setSaveError(null)
     try {
       await patchNotificationPreferences(address, draft, jwt)
-      setPrefs(draft)
       setSaveStatus('saved')
     } catch (err: unknown) {
       setSaveError(err instanceof Error ? err.message : 'Failed to save preferences')

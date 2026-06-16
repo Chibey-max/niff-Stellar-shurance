@@ -1,9 +1,11 @@
-import { FreighterModule } from '@creit.tech/stellar-wallets-kit/modules/freighter'
-import { xBullModule } from '@creit.tech/stellar-wallets-kit/modules/xbull'
-import { LobstrModule } from '@creit.tech/stellar-wallets-kit/modules/lobstr'
-import { FREIGHTER_ID } from '@creit.tech/stellar-wallets-kit/modules/freighter'
-import { XBULL_ID } from '@creit.tech/stellar-wallets-kit/modules/xbull'
-import { LOBSTR_ID } from '@creit.tech/stellar-wallets-kit/modules/lobstr'
+import {
+  FreighterModule,
+  xBullModule,
+  LobstrModule,
+  FREIGHTER_ID,
+  XBULL_ID,
+  LOBSTR_ID,
+} from '@creit.tech/stellar-wallets-kit'
 import type { WalletId } from '../context/WalletContext'
 
 export type WalletInstallState = Record<WalletId, boolean>

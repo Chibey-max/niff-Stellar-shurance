@@ -87,6 +87,7 @@
 |---|---|---|---|
 | `FRONTEND_ORIGINS` | `required` | Comma-separated public frontend origins allowed by CORS. | `http://localhost:3001` |
 | `ADMIN_CORS_ORIGINS` | `optional` | Comma-separated admin UI origins allowed by CORS. | `http://localhost:3002` |
+| `CORS_ALLOWED_ORIGINS` | `optional` | Canonical comma-separated CORS allowlist. When set, it takes precedence over FRONTEND_ORIGINS. | `http://localhost:3001` |
 
 ## Observability
 
@@ -163,6 +164,7 @@
 | `GRAPHQL_RATE_LIMIT_WINDOW_MS` | `required` | GraphQL rate-limit window in milliseconds. | `60000` |
 | `GRAPHQL_SLOW_OPERATION_MS` | `required` | Warn when a GraphQL operation exceeds this latency threshold. | `750` |
 | `GRAPHQL_PERSISTED_QUERIES_ENABLED` | `required` | Enable Apollo-style automatic persisted queries. | `false` |
+| `GRAPHQL_PERSISTED_QUERIES_ONLY` | `required` | Restrict production to pre-approved query hashes. When true, requests without an allowlisted sha256Hash are rejected. Set to false in development to allow arbitrary queries. | `false` |
 | `GRAPHQL_PERSISTED_QUERY_TTL_SECONDS` | `required` | Persisted GraphQL query cache TTL in seconds. | `86400` |
 | `GRAPHQL_POLICY_CLAIMS_DEFAULT_LIMIT` | `required` | Default nested policy.claims page size. | `10` |
 | `GRAPHQL_POLICY_CLAIMS_MAX_LIMIT` | `required` | Maximum nested policy.claims page size. | `25` |

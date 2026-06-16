@@ -205,11 +205,7 @@ fn validate_multiplier_table(env: &Env, table: &MultiplierTable) -> Result<(), E
 /// The only requirement is that the new version is strictly greater than the
 /// currently stored asset-specific version (or any version is accepted when
 /// no asset-specific table exists yet).
-fn validate_asset_table(
-    env: &Env,
-    asset: &Address,
-    table: &MultiplierTable,
-) -> Result<(), Error> {
+fn validate_asset_table(env: &Env, asset: &Address, table: &MultiplierTable) -> Result<(), Error> {
     if let Some(existing) = storage::get_asset_premium_table(env, asset) {
         if table.version <= existing.version {
             return Err(Error::InvalidConfigVersion);

@@ -5,8 +5,12 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import type { PolicyDto } from '@/features/policies/api';
 import { PolicyDashboard } from '@/features/policies/components/PolicyDashboard';
+import type { UseOptimisticPoliciesReturn } from '@/features/policies/hooks/useOptimisticPolicies';
 
-const useOptimisticPoliciesMock = jest.fn(() => ({
+function makeOptimisticPoliciesReturn(
+  overrides: Partial<UseOptimisticPoliciesReturn> = {},
+): UseOptimisticPoliciesReturn {
+  return {
   policies: [],
   mergedPolicies: [],
   total: 0,
@@ -21,7 +25,13 @@ const useOptimisticPoliciesMock = jest.fn(() => ({
   entries: new Map(),
   confirm: jest.fn(),
   rollback: jest.fn(),
-}));
+    ...overrides,
+  };
+}
+
+const useOptimisticPoliciesMock = jest.fn<UseOptimisticPoliciesReturn, []>(() =>
+  makeOptimisticPoliciesReturn(),
+);
 
 jest.mock('@/hooks/use-wallet', () => ({
   useWallet: () => ({
@@ -71,7 +81,12 @@ const basePolicy: PolicyDto = {
   _link: '/policies/42',
 };
 
-function makePolicy(overrides: Partial<PolicyDto> = {}): PolicyDto {
+type PolicyOverrides = Partial<Omit<PolicyDto, 'coverage_summary' | 'expiry_countdown'>> & {
+  coverage_summary?: Partial<PolicyDto['coverage_summary']>;
+  expiry_countdown?: Partial<PolicyDto['expiry_countdown']>;
+};
+
+function makePolicy(overrides: PolicyOverrides = {}): PolicyDto {
   return {
     ...basePolicy,
     ...overrides,
@@ -82,22 +97,7 @@ function makePolicy(overrides: Partial<PolicyDto> = {}): PolicyDto {
 
 describe('PolicyDashboard', () => {
   beforeEach(() => {
-    useOptimisticPoliciesMock.mockReturnValue({
-      policies: [],
-      mergedPolicies: [],
-      total: 0,
-      pageIndex: 0,
-      hasNextPage: false,
-      hasPrevPage: false,
-      loading: false,
-      error: null,
-      goToPage: jest.fn(),
-      retry: jest.fn(),
-      applyOptimisticPolicy: jest.fn(),
-      entries: new Map(),
-      confirm: jest.fn(),
-      rollback: jest.fn(),
-    });
+    useOptimisticPoliciesMock.mockReturnValue(makeOptimisticPoliciesReturn());
   });
 
   it('renders get-a-quote CTA when no policies exist', () => {
@@ -116,22 +116,11 @@ describe('PolicyDashboard', () => {
       expiry_countdown: { ledgers_remaining: 120960 },
     });
 
-    useOptimisticPoliciesMock.mockReturnValue({
+    useOptimisticPoliciesMock.mockReturnValue(makeOptimisticPoliciesReturn({
       policies: [expiringPolicy],
       mergedPolicies: [expiringPolicy],
       total: 1,
-      pageIndex: 0,
-      hasNextPage: false,
-      hasPrevPage: false,
-      loading: false,
-      error: null,
-      goToPage: jest.fn(),
-      retry: jest.fn(),
-      applyOptimisticPolicy: jest.fn(),
-      entries: new Map(),
-      confirm: jest.fn(),
-      rollback: jest.fn(),
-    });
+    }));
 
     render(<PolicyDashboard />);
 

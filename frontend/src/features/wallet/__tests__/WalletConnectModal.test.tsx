@@ -6,8 +6,7 @@ import userEvent from '@testing-library/user-event'
 import React from 'react'
 import { WalletConnectModal } from '../components/WalletConnectModal'
 import { LAST_WALLET_ID_STORAGE_KEY } from '../constants'
-import { FREIGHTER_ID } from '@creit.tech/stellar-wallets-kit/modules/freighter'
-import { XBULL_ID } from '@creit.tech/stellar-wallets-kit/modules/xbull'
+import { FREIGHTER_ID, XBULL_ID } from '@creit.tech/stellar-wallets-kit'
 
 const mockConnect = jest.fn()
 const mockDetect = jest.fn()

@@ -39,10 +39,6 @@ function isImageEvidence(url: string) {
   return /\.(png|jpe?g|gif|webp|avif)(\?.*)?$/i.test(url)
 }
 
-function isPdfEvidence(url: string) {
-  return /\.pdf(\?.*)?$/i.test(url)
-}
-
 function formatTimestamp(timestamp: string) {
   return new Intl.DateTimeFormat('en-US', {
     dateStyle: 'medium',
@@ -70,9 +66,6 @@ export function ClaimDetailView({ claimId }: ClaimDetailViewProps) {
     const rejectPct = total > 0 ? Math.round((no / total) * 100) : 0
     return { approvePct, rejectPct }
   }, [claim])
-
-  const currentLedger = claim?.deadline.votingDeadlineLedger ?? 0
-  const deadlineLedger = claim?.deadline.votingDeadlineLedger
 
   if (isLoading) {
     return (

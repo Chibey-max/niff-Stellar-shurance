@@ -26,6 +26,14 @@ const HORIZON_CIRCUIT_BREAKER_RESET_MS = 60_000;
  */
 const STELLAR_ADDRESS_RE = /^G[A-Z0-9]{55}$/;
 
+interface RetryAfterException extends ServiceUnavailableException {
+  retryAfter?: number;
+}
+
+interface HttpStatusError extends Error {
+  statusCode?: number;
+}
+
 @Injectable()
 export class HorizonService {
   private readonly logger = new Logger(HorizonService.name);
@@ -130,7 +138,7 @@ export class HorizonService {
     }
 
     const url = this.buildHorizonUrl(account, cursor, clampedLimit);
-    const raw = await this.fetchFromHorizonWithCircuitBreaker(url);
+    const raw = await this.fetchFromHorizon(url);
     const records = this.extractRecords(raw);
     const filtered = filterHorizonOperations(records);
     const nextCursor = this.extractNextCursor(raw);
@@ -173,6 +181,9 @@ export class HorizonService {
     } catch (err) {
       this.logger.warn(`Event enrichment failed: ${err}`);
       eventsEnriched = false;
+      for (const record of filtered) {
+        delete record.contractEvents;
+      }
     }
 
     const response: HorizonTransactionResponse = {
@@ -209,14 +220,20 @@ export class HorizonService {
     } catch (err) {
       if (this.circuitBreaker.opened) {
         const retryAfterSeconds = Math.ceil(this.circuitBreakerResetMs / 1000);
-        const error = new ServiceUnavailableException("Horizon is temporarily unavailable");
-        (error as any).retryAfter = retryAfterSeconds;
+        const error = new ServiceUnavailableException(
+          "Horizon is temporarily unavailable",
+        ) as RetryAfterException;
+        error.retryAfter = retryAfterSeconds;
         throw error;
       }
 
       this.logger.error(`Horizon fetch failed: ${err}`);
       throw new BadGatewayException("Horizon is unreachable");
     }
+  }
+
+  private async fetchFromHorizon(url: string): Promise<Record<string, unknown>> {
+    return this.fetchFromHorizonWithCircuitBreaker(url);
   }
 
   private async fetchFromHorizonInternal(
@@ -230,17 +247,17 @@ export class HorizonService {
       });
 
       if (!res.ok) {
-        const error = new Error(`Horizon returned HTTP ${res.status}`);
-        (error as any).statusCode = res.status;
+        const error = new Error(`Horizon returned HTTP ${res.status}`) as HttpStatusError;
+        error.statusCode = res.status;
         throw error;
       }
 
       return (await res.json()) as Record<string, unknown>;
     } catch (err) {
-      const statusCode = (err as any).statusCode;
+      const statusCode = (err as HttpStatusError).statusCode;
       if (statusCode === 429) {
-        const error = new Error("Too Many Requests from Horizon");
-        (error as any).statusCode = 429;
+        const error = new Error("Too Many Requests from Horizon") as HttpStatusError;
+        error.statusCode = 429;
         throw error;
       }
       throw err;

@@ -33,7 +33,8 @@ export class WasmDriftJob implements OnModuleInit {
   }
 
   async onModuleInit(): Promise<void> {
-    const intervalMs = this.config.get<number>('WASM_DRIFT_CHECK_INTERVAL_MS', 6 * 60 * 60 * 1000);
+    const intervalMs =
+      this.config.get<number>('WASM_DRIFT_CHECK_INTERVAL_MS') ?? 6 * 60 * 60 * 1000;
     // Remove stale repeatable job before re-registering (handles interval changes)
     const repeatables = await this.queue.getRepeatableJobs();
     for (const r of repeatables) {

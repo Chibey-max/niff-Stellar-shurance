@@ -35,9 +35,7 @@ fn setup() -> TestEnv<'static> {
 
     let admin = Address::generate(&env);
     let issuer = Address::generate(&env);
-    let premium_token = env
-        .register_stellar_asset_contract_v2(issuer)
-        .address();
+    let premium_token = env.register_stellar_asset_contract_v2(issuer).address();
     let premium_token_admin = token::StellarAssetClient::new(&env, &premium_token);
 
     client.initialize(&admin, &premium_token);
@@ -86,11 +84,7 @@ fn fund_holder(t: &TestEnv, holder: &Address, amount: i128) {
     );
 }
 
-fn seed_approved_claim(
-    t: &TestEnv,
-    claim_id: u64,
-    policy: &niffyinsure::types::Policy,
-) {
+fn seed_approved_claim(t: &TestEnv, claim_id: u64, policy: &niffyinsure::types::Policy) {
     let claim = Claim {
         claim_id,
         policy_id: policy.policy_id,
@@ -223,7 +217,10 @@ fn set_override_reverts_when_asset_not_allowlisted() {
     );
 
     // Config must remain unset.
-    assert!(t.client.get_policy_type_config(&PolicyType::Health).is_none());
+    assert!(t
+        .client
+        .get_policy_type_config(&PolicyType::Health)
+        .is_none());
 }
 
 /// Clearing the override (passing None) after it was set reverts to fallback behaviour.
@@ -263,8 +260,15 @@ fn clearing_override_reverts_to_fallback() {
 
     t.client.process_claim(&3u64);
 
-    assert_eq!(premium_client.balance(&holder), before_premium + 5_000_000i128);
-    assert_eq!(payout_client.balance(&holder), before_payout, "payout token must not be used after override cleared");
+    assert_eq!(
+        premium_client.balance(&holder),
+        before_premium + 5_000_000i128
+    );
+    assert_eq!(
+        payout_client.balance(&holder),
+        before_payout,
+        "payout token must not be used after override cleared"
+    );
 }
 
 /// Override is per-policy-type: configuring Auto does not affect Health payouts.
@@ -280,7 +284,10 @@ fn override_is_scoped_to_policy_type() {
         .unwrap();
 
     // Health has no override.
-    assert!(t.client.get_policy_type_config(&PolicyType::Health).is_none());
+    assert!(t
+        .client
+        .get_policy_type_config(&PolicyType::Health)
+        .is_none());
 
     // Initiate a Health policy.
     let holder = Address::generate(&t.env);
@@ -337,6 +344,9 @@ fn override_is_scoped_to_policy_type() {
     t.client.process_claim(&4u64);
 
     // Health payout uses premium asset (no override).
-    assert_eq!(premium_client.balance(&holder), before_premium + 5_000_000i128);
+    assert_eq!(
+        premium_client.balance(&holder),
+        before_premium + 5_000_000i128
+    );
     assert_eq!(payout_client.balance(&holder), before_payout);
 }

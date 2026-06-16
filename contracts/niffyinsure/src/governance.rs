@@ -103,8 +103,8 @@ pub fn vote_proposal(
 ) -> Result<(), GovernanceError> {
     require_token_holder(env, &voter);
 
-    let mut proposal = storage::get_proposal(env, proposal_id)
-        .ok_or(GovernanceError::ProposalNotFound)?;
+    let mut proposal =
+        storage::get_proposal(env, proposal_id).ok_or(GovernanceError::ProposalNotFound)?;
     if env.ledger().sequence() > proposal.deadline {
         storage::remove_proposal(env, proposal_id);
         return Err(GovernanceError::VotingClosed);

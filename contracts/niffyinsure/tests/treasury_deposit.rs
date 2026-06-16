@@ -39,7 +39,9 @@ fn authorized_treasury_deposit_succeeds_and_emits_event() {
     let before_depositor_balance = token::Client::new(&env, &token).balance(&depositor);
     let before_treasury_balance = token::Client::new(&env, &token).balance(&contract_id);
 
-    client.deposit_treasury(&depositor, &500_000i128, &token).unwrap();
+    client
+        .deposit_treasury(&depositor, &500_000i128, &token)
+        .unwrap();
 
     assert_eq!(
         token::Client::new(&env, &token).balance(&depositor),

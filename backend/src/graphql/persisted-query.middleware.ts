@@ -148,7 +148,7 @@ export class PersistedQueryMiddleware implements NestMiddleware {
     });
   }
 
-  private static loadAllowlistFile(config: ConfigService): Map<string, string> {
+  private static loadAllowlistFile(_config: ConfigService): Map<string, string> {
     const bodies = new Map<string, string>();
     const filePath = join(process.cwd(), 'src/graphql/persisted-query-allowlist.json');
 

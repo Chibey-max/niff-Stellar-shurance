@@ -1,9 +1,11 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CaptchaService } from '../../captcha/captcha.service';
+import { CaptchaService } from '../captcha.service';
 import { CreateSupportTicketDto, UpdateSupportTicketDto, SupportTicketResponseDto } from '../dto/support-ticket.dto';
-import { crypto } from '@stellar/stellar-sdk';
+
+type SupportTicket = Prisma.SupportTicketGetPayload<object>;
 
 @Injectable()
 export class SupportTicketService {
@@ -38,7 +40,7 @@ export class SupportTicketService {
         subject: dto.subject,
         message: dto.message,
         ipHash,
-        status: 'open',
+        status: 'OPEN',
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -62,7 +64,7 @@ export class SupportTicketService {
    * Update ticket status with audit logging (admin only)
    */
   async updateTicketStatus(
-    ticketId: number,
+    ticketId: string,
     dto: UpdateSupportTicketDto,
     adminId: string,
   ): Promise<SupportTicketResponseDto> {
@@ -83,13 +85,13 @@ export class SupportTicketService {
     });
 
     // Audit log the status change
-    await this.prisma.auditLog.create({
+    await this.prisma.adminAuditLog.create({
       data: {
+        actor: adminId,
         action: 'SUPPORT_TICKET_STATUS_UPDATED',
-        resourceType: 'SUPPORT_TICKET',
-        resourceId: String(ticketId),
-        actorId: adminId,
-        details: {
+        payload: {
+          resourceType: 'SUPPORT_TICKET',
+          resourceId: String(ticketId),
           from: ticket.status,
           to: dto.status,
           notes: dto.internalNotes,
@@ -128,7 +130,7 @@ export class SupportTicketService {
   /**
    * Get single ticket by ID
    */
-  async getTicket(ticketId: number): Promise<SupportTicketResponseDto> {
+  async getTicket(ticketId: string): Promise<SupportTicketResponseDto> {
     const ticket = await this.prisma.supportTicket.findUnique({
       where: { id: ticketId },
     });
@@ -143,7 +145,7 @@ export class SupportTicketService {
   /**
    * Notify support team via configurable webhook on new ticket
    */
-  private async notifyWebhook(ticket: any): Promise<void> {
+  private async notifyWebhook(ticket: SupportTicket): Promise<void> {
     const webhookUrl = this.config.get<string>('SUPPORT_WEBHOOK_URL');
     if (!webhookUrl) {
       this.logger.debug('Support webhook URL not configured, skipping notification');
@@ -190,7 +192,7 @@ export class SupportTicketService {
   /**
    * Map internal ticket model to response DTO
    */
-  private mapToResponse(ticket: any): SupportTicketResponseDto {
+  private mapToResponse(ticket: SupportTicket): SupportTicketResponseDto {
     return {
       id: ticket.id,
       email: ticket.email,

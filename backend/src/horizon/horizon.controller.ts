@@ -13,6 +13,10 @@ import type { Response } from "express";
 import { HorizonService } from "./horizon.service";
 import { HorizonTransactionResponse } from "./dto/horizon-transaction.dto";
 
+interface RetryAfterException {
+  retryAfter?: number;
+}
+
 @Controller("horizon")
 export class HorizonController {
   private readonly logger = new Logger(HorizonController.name);
@@ -63,7 +67,7 @@ export class HorizonController {
       return await this.horizonService.getTransactions(account, cursor, limit);
     } catch (err) {
       if (err instanceof ServiceUnavailableException) {
-        const retryAfter = (err as any).retryAfter;
+        const retryAfter = (err as RetryAfterException).retryAfter;
         if (retryAfter) {
           res?.setHeader("Retry-After", String(retryAfter));
         }

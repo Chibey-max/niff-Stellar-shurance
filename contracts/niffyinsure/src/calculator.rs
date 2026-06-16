@@ -82,9 +82,10 @@ const CALC_EXPECTED_VERSION_KEY: &str = "calc_exp_ver";
 
 /// Store the expected calculator version in instance storage.
 pub fn set_expected_calc_version(env: &Env, version: u32) {
-    env.storage()
-        .instance()
-        .set(&soroban_sdk::Symbol::new(env, CALC_EXPECTED_VERSION_KEY), &version);
+    env.storage().instance().set(
+        &soroban_sdk::Symbol::new(env, CALC_EXPECTED_VERSION_KEY),
+        &version,
+    );
 }
 
 /// Read the expected calculator version (None = version check disabled).
@@ -105,11 +106,7 @@ pub fn clear_expected_calc_version(env: &Env) {
 /// Both are written together or neither is written (Soroban transactions are atomic).
 ///
 /// Pass `expected_version = 0` to disable version checking.
-pub fn set_calculator_with_version(
-    env: &Env,
-    calculator: &Address,
-    expected_version: u32,
-) {
+pub fn set_calculator_with_version(env: &Env, calculator: &Address, expected_version: u32) {
     storage::set_calc_address(env, calculator);
     if expected_version == 0 {
         clear_expected_calc_version(env);

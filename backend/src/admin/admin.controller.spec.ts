@@ -13,6 +13,8 @@ import { AdminRoleGuard } from './guards/admin-role.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SolvencyMonitoringService } from '../maintenance/solvency-monitoring.service';
 import { SorobanService } from '../rpc/soroban.service';
+import { AdminTenantsService } from './admin-tenants.service';
+import { AdminStatsService } from './admin-stats.service';
 
 const mockAdminService = {
   enqueueReindex: jest.fn(),
@@ -21,6 +23,8 @@ const mockAdminService = {
   setFeatureFlag: jest.fn(),
   getFeatureFlags: jest.fn(),
   getReindexStatus: jest.fn(),
+  getClaimForOverride: jest.fn(),
+  overrideClaimStatus: jest.fn(),
 };
 const mockAdminPoliciesService = {
   listPolicies: jest.fn(),
@@ -44,6 +48,8 @@ const mockQueueMonitorService = {
 const mockSorobanService = {
   tryEmitClaimStatusOverrideEvent: jest.fn(),
 };
+const mockAdminTenantsService = {};
+const mockAdminStatsService = { getStats: jest.fn() };
 
 const adminReq = (role = 'admin', scopes: string[] = ['admin:claims:override']) =>
   ({
@@ -71,7 +77,7 @@ describe('AdminController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AdminController],
       providers: [
-      { provide: AdminService, useValue: mockAdminService },
+        { provide: AdminService, useValue: mockAdminService },
         { provide: AdminPoliciesService, useValue: mockAdminPoliciesService },
         { provide: AuditService, useValue: mockAuditService },
         { provide: ConfigService, useValue: mockConfigService },
@@ -83,6 +89,8 @@ describe('AdminController', () => {
           provide: SolvencyMonitoringService,
           useValue: mockSolvencyMonitoringService,
         },
+        { provide: AdminTenantsService, useValue: mockAdminTenantsService },
+        { provide: AdminStatsService, useValue: mockAdminStatsService },
         { provide: SorobanService, useValue: mockSorobanService },
       ],
     })
@@ -457,7 +465,7 @@ describe('Admin Role Guard Enforcement', () => {
     module = await Test.createTestingModule({
       controllers: [AdminController],
       providers: [
-      { provide: AdminService, useValue: mockAdminService },
+        { provide: AdminService, useValue: mockAdminService },
         { provide: AdminPoliciesService, useValue: mockAdminPoliciesService },
         { provide: AuditService, useValue: mockAuditService },
         { provide: ConfigService, useValue: mockConfigService },
@@ -468,6 +476,9 @@ describe('Admin Role Guard Enforcement', () => {
           provide: SolvencyMonitoringService,
           useValue: mockSolvencyMonitoringService,
         },
+        { provide: AdminTenantsService, useValue: mockAdminTenantsService },
+        { provide: AdminStatsService, useValue: mockAdminStatsService },
+        { provide: SorobanService, useValue: mockSorobanService },
       ],
     })
       .overrideGuard(JwtAuthGuard)

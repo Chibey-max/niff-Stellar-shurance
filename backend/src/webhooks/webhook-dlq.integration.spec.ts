@@ -17,7 +17,7 @@ import {
   replayDeadLetterJob,
   webhookQueue,
   DeliveryRecord,
-} from '../queue';
+} from './queue';
 
 // ── Mock BullMQ Queue ─────────────────────────────────────────────────────────
 
@@ -77,7 +77,7 @@ jest.mock('bullmq', () => {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 // Access the mock queue internals via the mocked module.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockQueue = (webhookQueue as any);
 
 function addJob(

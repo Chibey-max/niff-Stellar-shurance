@@ -214,9 +214,9 @@ impl ClaimStatus {
                 | ClaimStatus::AppealRejected
                 | ClaimStatus::Withdrawn
                 | ClaimStatus::Disputed // NOTE: ClaimStatus::Appealed is intentionally absent — an appeal
-                                         // in progress is NOT terminal.  Adding it here would allow
-                                         // process_claim / finalize_claim to close an appealed claim without
-                                         // resolving the appeal round, which would be incorrect.
+                                        // in progress is NOT terminal.  Adding it here would allow
+                                        // process_claim / finalize_claim to close an appealed claim without
+                                        // resolving the appeal round, which would be incorrect.
         )
     }
 }

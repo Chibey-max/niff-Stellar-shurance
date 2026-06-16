@@ -1,9 +1,9 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { FeatureFlagsService } from '../feature-flags/feature-flags.service';
 import { Queue } from 'bullmq';
 import { getBullMQConnection } from '../redis/client';
-import { Prisma } from '@prisma/client';
+import { ClaimStatus, Prisma } from '@prisma/client';
 
 export interface BackfillJobInfo {
   jobId: string;
@@ -185,7 +185,7 @@ export class AdminService {
 
     // Status filter
     if (options.status) {
-      where.status = options.status as any;
+      where.status = options.status as ClaimStatus;
     }
 
     // Claimant (creator) filter
@@ -201,10 +201,10 @@ export class AdminService {
     // Date range filters
     const dateConditions: Prisma.DateTimeFilter = {};
     if (options.dateFrom) {
-      (dateConditions as any).gte = new Date(options.dateFrom);
+      dateConditions.gte = new Date(options.dateFrom);
     }
     if (options.dateTo) {
-      (dateConditions as any).lte = new Date(options.dateTo);
+      dateConditions.lte = new Date(options.dateTo);
     }
     if (Object.keys(dateConditions).length > 0) {
       where.createdAt = dateConditions;
@@ -303,10 +303,10 @@ export class AdminService {
 
     const dateConditions: Prisma.DateTimeFilter = {};
     if (options.dateFrom) {
-      (dateConditions as any).gte = new Date(options.dateFrom);
+      dateConditions.gte = new Date(options.dateFrom);
     }
     if (options.dateTo) {
-      (dateConditions as any).lte = new Date(options.dateTo);
+      dateConditions.lte = new Date(options.dateTo);
     }
     if (Object.keys(dateConditions).length > 0) {
       where.createdAt = dateConditions;
@@ -354,5 +354,55 @@ export class AdminService {
     }
 
     return rows.join('\n');
+  }
+
+  async bulkUpdateClaims(
+    claimIds: number[],
+    status: ClaimStatus,
+    reason: string,
+    actor: string,
+    dryRun: boolean,
+  ): Promise<{ dryRun: boolean; affectedCount: number; claimIds: number[] }> {
+    const claims = await this.prisma.claim.findMany({
+      where: { id: { in: claimIds } },
+    });
+    const affectedIds = claims.map((claim) => claim.id);
+
+    if (!dryRun) {
+      await this.prisma.claim.updateMany({
+        where: { id: { in: affectedIds } },
+        data: { status },
+      });
+
+      for (const claimId of affectedIds) {
+        await this.prisma.adminAuditLog.create({
+          data: {
+            actor,
+            action: 'bulk_claim_status_update',
+            payload: { claimId, status, reason },
+          },
+        });
+      }
+    }
+
+    return { dryRun, affectedCount: affectedIds.length, claimIds: affectedIds };
+  }
+
+  async getClaimForOverride(claimId: number) {
+    const claim = await this.prisma.claim.findUnique({ where: { id: claimId } });
+    if (!claim) {
+      throw new Error(`Claim ${claimId} not found`);
+    }
+    return claim;
+  }
+
+  async overrideClaimStatus(claimId: number, status: ClaimStatus) {
+    return this.prisma.claim.update({
+      where: { id: claimId },
+      data: {
+        status,
+        updatedAt: new Date(),
+      },
+    });
   }
 }

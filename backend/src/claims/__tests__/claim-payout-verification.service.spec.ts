@@ -2,12 +2,12 @@ import { ClaimPayoutVerificationService } from '../services/claim-payout-verific
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 
-const mockTransactions = () => ({ hash: jest.fn() });
-const mockOperations = () => ({ forTransaction: jest.fn() });
-
 function makeHorizon(txOk: boolean, ops: unknown[]) {
   return {
     transactions: () => ({
+      transaction: () => ({
+        call: jest.fn().mockResolvedValue(txOk ? { id: 'tx123' } : { id: 'wrong' }),
+      }),
       hash: () => ({
         call: jest.fn().mockResolvedValue(txOk ? { id: 'tx123' } : { id: 'wrong' }),
       }),
@@ -31,17 +31,27 @@ function makeConfig(url = 'https://horizon-testnet.stellar.org') {
 }
 
 describe('ClaimPayoutVerificationService', () => {
+  function setHorizonClient(
+    svc: ClaimPayoutVerificationService,
+    horizonClient: ReturnType<typeof makeHorizon> | object,
+  ) {
+    Object.defineProperty(svc, 'horizonClient', {
+      value: horizonClient,
+      configurable: true,
+    });
+  }
+
   it('returns verified=true for matching payment operation', async () => {
     const ops = [
       {
         type: 'payment',
         to: 'GRECIPIENT',
         amount: '100.0000000',
-        successful: true,
+        transaction_successful: true,
       },
     ];
     const svc = new ClaimPayoutVerificationService(makeConfig(), makePrisma());
-    (svc as any).horizonClient = makeHorizon(true, ops);
+    setHorizonClient(svc, makeHorizon(true, ops));
 
     const result = await svc.verifyTokenTransfer(1, 'tx123', '100.0000000', 'GRECIPIENT', '');
     expect(result.verified).toBe(true);
@@ -54,11 +64,11 @@ describe('ClaimPayoutVerificationService', () => {
         type: 'payment',
         to: 'GWRONG',
         amount: '50.0000000',
-        successful: true,
+        transaction_successful: true,
       },
     ];
     const svc = new ClaimPayoutVerificationService(makeConfig(), makePrisma());
-    (svc as any).horizonClient = makeHorizon(true, ops);
+    setHorizonClient(svc, makeHorizon(true, ops));
 
     const result = await svc.verifyTokenTransfer(1, 'tx123', '100.0000000', 'GRECIPIENT', '');
     expect(result.verified).toBe(false);
@@ -68,11 +78,11 @@ describe('ClaimPayoutVerificationService', () => {
   it('returns verified=false and logs alert on Horizon error', async () => {
     const prisma = makePrisma();
     const svc = new ClaimPayoutVerificationService(makeConfig(), prisma);
-    (svc as any).horizonClient = {
+    setHorizonClient(svc, {
       transactions: () => ({
-        hash: () => ({ call: jest.fn().mockRejectedValue(new Error('network error')) }),
+        transaction: () => ({ call: jest.fn().mockRejectedValue(new Error('network error')) }),
       }),
-    };
+    });
 
     const result = await svc.verifyTokenTransfer(1, 'tx123', '100', 'GRECIPIENT', '');
     expect(result.verified).toBe(false);
@@ -84,15 +94,13 @@ describe('ClaimPayoutVerificationService', () => {
     const ops = [
       {
         type: 'invoke_host_function',
-        successful: true,
-        function: {
-          contract_id: 'CTOKEN',
-          function_args: ['GRECIPIENT', '500'],
-        },
+        transaction_successful: true,
+        address: 'CTOKEN',
+        parameters: [{ value: 'GRECIPIENT' }, { value: '500' }],
       },
     ];
     const svc = new ClaimPayoutVerificationService(makeConfig(), makePrisma());
-    (svc as any).horizonClient = makeHorizon(true, ops);
+    setHorizonClient(svc, makeHorizon(true, ops));
 
     const result = await svc.verifyTokenTransfer(1, 'tx123', '500', 'GRECIPIENT', 'CTOKEN');
     expect(result.verified).toBe(true);

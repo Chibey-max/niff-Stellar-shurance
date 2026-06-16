@@ -1,33 +1,26 @@
 import React from 'react';
 import { render, waitFor } from '@testing-library/react';
-import { StellarWalletsKit } from '@creit.tech/stellar-wallets-kit';
 import { WalletProvider, useWalletContext } from '../context/WalletContext';
 import { toast } from '@/components/ui/use-toast';
 
 // Mock dependencies
-jest.mock('@creit.tech/stellar-wallets-kit', () => ({
-  StellarWalletsKit: {
-    init: jest.fn(),
-    on: jest.fn(),
-    setWallet: jest.fn(),
-    getAddress: jest.fn(),
-    getNetwork: jest.fn(),
-    setNetwork: jest.fn(),
-    disconnect: jest.fn(),
-    signTransaction: jest.fn(),
-  },
-  Networks: { PUBLIC: 'public', TESTNET: 'testnet', FUTURENET: 'futurenet' },
-  KitEventType: { STATE_UPDATED: 'state_updated', DISCONNECT: 'disconnect' },
-}));
+const mockKit = {
+  setWallet: jest.fn(),
+  getAddress: jest.fn(),
+  getNetwork: jest.fn(),
+  disconnect: jest.fn(),
+  signTransaction: jest.fn(),
+}
 
-jest.mock('@creit.tech/stellar-wallets-kit/modules/freighter', () => ({
+jest.mock('@creit.tech/stellar-wallets-kit', () => ({
+  StellarWalletsKit: jest.fn(() => mockKit),
+  WalletNetwork: { PUBLIC: 'public', TESTNET: 'testnet', FUTURENET: 'futurenet' },
   FreighterModule: jest.fn(),
   FREIGHTER_ID: 'freighter',
-}));
-
-jest.mock('@creit.tech/stellar-wallets-kit/modules/xbull', () => ({
   xBullModule: jest.fn(),
   XBULL_ID: 'xbull',
+  LobstrModule: jest.fn(),
+  LOBSTR_ID: 'lobstr',
 }));
 
 jest.mock('@/components/ui/use-toast', () => ({
@@ -51,14 +44,14 @@ describe('WalletContext Auto-Reconnect', () => {
   beforeEach(() => {
     localStorage.clear();
     jest.clearAllMocks();
-    (StellarWalletsKit.getNetwork as jest.Mock).mockResolvedValue({ network: 'testnet' });
+    mockKit.getNetwork.mockResolvedValue({ network: 'testnet', networkPassphrase: 'testnet' });
   });
 
   it('silently reconnects when valid session exists', async () => {
     const session = { walletId: 'freighter', publicKey: 'GBXYZ...' };
     localStorage.setItem(LS_WALLET_SESSION, JSON.stringify(session));
     
-    (StellarWalletsKit.getAddress as jest.Mock).mockResolvedValue({ address: 'GBXYZ...' });
+    mockKit.getAddress.mockResolvedValue({ address: 'GBXYZ...' });
 
     const { getByTestId } = render(
       <WalletProvider>
@@ -72,7 +65,7 @@ describe('WalletContext Auto-Reconnect', () => {
       expect(getByTestId('wallet-id').textContent).toBe('freighter');
     });
 
-    expect(StellarWalletsKit.setWallet).toHaveBeenCalledWith('freighter');
+    expect(mockKit.setWallet).toHaveBeenCalledWith('freighter');
   });
 
   it('clears session when public keys mismatch', async () => {
@@ -80,7 +73,7 @@ describe('WalletContext Auto-Reconnect', () => {
     const session = { walletId: 'xbull', publicKey: 'GBXYZ...' };
     localStorage.setItem(LS_WALLET_SESSION, JSON.stringify(session));
     
-    (StellarWalletsKit.getAddress as jest.Mock).mockResolvedValue({ address: 'GB123...' });
+    mockKit.getAddress.mockResolvedValue({ address: 'GB123...' });
 
     const { getByTestId } = render(
       <WalletProvider>
@@ -98,7 +91,7 @@ describe('WalletContext Auto-Reconnect', () => {
     const session = { walletId: 'freighter', publicKey: 'GBXYZ...' };
     localStorage.setItem(LS_WALLET_SESSION, JSON.stringify(session));
     
-    (StellarWalletsKit.getAddress as jest.Mock).mockRejectedValue(new Error('Locked'));
+    mockKit.getAddress.mockRejectedValue(new Error('Locked'));
 
     render(
       <WalletProvider>

@@ -30,7 +30,9 @@ const mockGetClaims = adminApi.getClaims as jest.MockedFunction<typeof adminApi.
 const mockOverride = adminApi.overrideClaimStatus as jest.MockedFunction<typeof adminApi.overrideClaimStatus>
 const mockBulkUpdate = adminApi.bulkUpdateClaims as jest.MockedFunction<typeof adminApi.bulkUpdateClaims>
 
-const makeClaim = (id: number, status = 'PENDING' as const) => ({
+type AdminClaimStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID'
+
+const makeClaim = (id: number, status: AdminClaimStatus = 'PENDING') => ({
   id,
   policyId: `POL-${id}`,
   creatorAddress: `GABC${id.toString().padStart(56, '0')}`,

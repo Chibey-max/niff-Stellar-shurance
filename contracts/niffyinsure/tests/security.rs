@@ -222,7 +222,9 @@ fn auth05_non_admin_cannot_set_allowed_asset() {
             soroban_sdk::IntoVal::<Env, soroban_sdk::Val>::into_val(&7u32, &env)
         ],
     );
-    assert!(client.try_set_allowed_asset(&asset, &true, &sym, &7u32).is_err());
+    assert!(client
+        .try_set_allowed_asset(&asset, &true, &sym, &7u32)
+        .is_err());
 }
 
 // ── AUTH-02: rotation hijack prevention ───────────────────────────────────────

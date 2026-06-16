@@ -220,7 +220,7 @@ fn renew_at_end_ledger_is_in_grace_period() {
 
 #[test]
 fn renew_past_grace_period_returns_lapsed() {
-    use niffyinsure::types::{DEFAULT_GRACE_PERIOD_LEDGERS, RenewPolicyOutcome};
+    use niffyinsure::types::{RenewPolicyOutcome, DEFAULT_GRACE_PERIOD_LEDGERS};
     let (env, client, _, token) = setup();
     let holder = Address::generate(&env);
     let end = 1_000u32;
@@ -236,7 +236,9 @@ fn renew_past_grace_period_returns_lapsed() {
     );
 
     // now = end + grace + 1: past grace period
-    let lapsed = end.saturating_add(DEFAULT_GRACE_PERIOD_LEDGERS).saturating_add(1);
+    let lapsed = end
+        .saturating_add(DEFAULT_GRACE_PERIOD_LEDGERS)
+        .saturating_add(1);
     env.ledger().with_mut(|l| l.sequence_number = lapsed);
 
     let result = client.try_renew_policy(

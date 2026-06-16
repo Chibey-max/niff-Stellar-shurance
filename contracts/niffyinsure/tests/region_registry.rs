@@ -5,10 +5,7 @@ use niffyinsure::{
     types::{AgeBand, CoverageTier, InitiatePolicyOptions, PolicyType, RegionConfig, RegionTier},
     NiffyInsureClient,
 };
-use soroban_sdk::{
-    testutils::Address as _,
-    Address, Env, String,
-};
+use soroban_sdk::{testutils::Address as _, Address, Env, String};
 
 fn setup() -> (Env, NiffyInsureClient<'static>, Address, Address) {
     let env = Env::default();

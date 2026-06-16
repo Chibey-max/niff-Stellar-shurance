@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Horizon } from '@stellar/stellar-sdk';
+import type { ServerApi } from '@stellar/stellar-sdk/lib/horizon/server_api';
 
 export interface PayoutVerificationResult {
   verified: boolean;
@@ -36,7 +37,7 @@ export class ClaimPayoutVerificationService {
   ): Promise<PayoutVerificationResult> {
     try {
       // Query Horizon for the transaction
-      const transaction = await this.horizonClient.transactions().hash(txHash).call();
+      const transaction = await this.horizonClient.transactions().transaction(txHash).call();
 
       if (transaction.id !== txHash) {
         this.logger.warn(`Transaction hash mismatch for claim ${claimId}`);
@@ -49,17 +50,17 @@ export class ClaimPayoutVerificationService {
 
       // Find the token transfer operation
       const operationsPage = await this.horizonClient.operations().forTransaction(txHash).call();
-      const operations = operationsPage.records as Horizon.OperationResponseType[];
+      const operations = operationsPage.records as ServerApi.OperationRecord[];
 
       for (const [index, op] of operations.entries()) {
         // Check for Soroban invoke operations (token transfers are typically Soroban calls)
         if (op.type === 'invoke_host_function') {
-          const invokeOp = op as Horizon.InvokeHostFunctionOperationResponse;
+          const invokeOp = op as ServerApi.InvokeHostFunctionOperationRecord;
 
           // Verify it's calling the token contract
-          if (invokeOp.function?.contract_id === tokenContractId) {
+          if (invokeOp.address === tokenContractId) {
             // Verify recipient and amount in function args
-            const functionArgs = invokeOp.function?.function_args || [];
+            const functionArgs = invokeOp.parameters.map((param) => param.value);
 
             // Check if recipient is in args (typically first or second arg)
             const recipientMatch = functionArgs.some(
@@ -71,7 +72,7 @@ export class ClaimPayoutVerificationService {
               (arg) => typeof arg === 'string' && arg.includes(expectedAmount),
             );
 
-            if (recipientMatch && amountMatch && invokeOp.successful) {
+            if (recipientMatch && amountMatch && invokeOp.transaction_successful) {
               this.logger.log(`Verified token transfer for claim ${claimId} at operation ${index}`);
               return {
                 verified: true,
@@ -84,11 +85,11 @@ export class ClaimPayoutVerificationService {
 
         // Also check for payment operations (for non-Soroban transfers)
         if (op.type === 'payment') {
-          const paymentOp = op as Horizon.PaymentOperationResponse;
+          const paymentOp = op as ServerApi.PaymentOperationRecord;
           if (
             paymentOp.to === recipientAddress &&
             parseFloat(paymentOp.amount) === parseFloat(expectedAmount) &&
-            paymentOp.successful
+            paymentOp.transaction_successful
           ) {
             this.logger.log(`Verified payment for claim ${claimId} at operation ${index}`);
             return {
@@ -141,12 +142,13 @@ export class ClaimPayoutVerificationService {
     const errorMsg = error instanceof Error ? error.message : String(error);
 
     // Create an audit log entry
-    await this.prisma.auditLog.create({
+    await this.prisma.adminAuditLog.create({
       data: {
+        actor: 'system',
         action: 'CLAIM_PAYOUT_VERIFICATION_FAILED',
-        resourceType: 'CLAIM',
-        resourceId: String(claimId),
-        details: {
+        payload: {
+          resourceType: 'CLAIM',
+          resourceId: String(claimId),
           txHash,
           reason: errorMsg,
           timestamp: new Date().toISOString(),

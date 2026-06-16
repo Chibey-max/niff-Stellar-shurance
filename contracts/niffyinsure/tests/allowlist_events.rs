@@ -38,15 +38,13 @@ fn add_emits_asset_set_event() {
     let (env, client, _token) = setup();
     let asset = new_asset(&env);
 
-    client.set_allowed_asset(
-        &asset,
-        &true,
-        &String::from_str(&env, "USDC"),
-        &7u32,
-    );
+    client.set_allowed_asset(&asset, &true, &String::from_str(&env, "USDC"), &7u32);
 
     assert!(client.is_allowed_asset(&asset));
-    assert!(!env.events().all().events().is_empty(), "asset_set event must be emitted on add");
+    assert!(
+        !env.events().all().events().is_empty(),
+        "asset_set event must be emitted on add"
+    );
 }
 
 #[test]
@@ -61,7 +59,10 @@ fn remove_emits_asset_set_event() {
     client.set_allowed_asset(&asset, &false, &String::from_str(&env, ""), &0u32);
 
     assert!(!client.is_allowed_asset(&asset));
-    assert!(!env.events().all().events().is_empty(), "asset_set event must be emitted on remove");
+    assert!(
+        !env.events().all().events().is_empty(),
+        "asset_set event must be emitted on remove"
+    );
 }
 
 #[test]
@@ -75,5 +76,8 @@ fn readd_already_allowed_asset_emits_event_without_revert() {
     // Re-add: must not revert and must emit an event.
     client.set_allowed_asset(&asset, &true, &String::from_str(&env, "USDC"), &7u32);
     assert!(client.is_allowed_asset(&asset));
-    assert!(!env.events().all().events().is_empty(), "asset_set event must be emitted on idempotent re-add");
+    assert!(
+        !env.events().all().events().is_empty(),
+        "asset_set event must be emitted on idempotent re-add"
+    );
 }

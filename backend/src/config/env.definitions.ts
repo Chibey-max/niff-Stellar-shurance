@@ -644,6 +644,15 @@ export const ENV_DEFINITIONS: EnvDefinitionMap = {
     required: 'optional',
     schema: Joi.string().allow('').default(''),
   },
+  CORS_ALLOWED_ORIGINS: {
+    key: 'CORS_ALLOWED_ORIGINS',
+    section: 'HTTP',
+    description:
+      'Canonical comma-separated CORS allowlist. When set, it takes precedence over FRONTEND_ORIGINS.',
+    example: 'http://localhost:3001',
+    required: 'optional',
+    schema: Joi.string().allow('').default(''),
+  },
   LOG_LEVEL: {
     key: 'LOG_LEVEL',
     section: 'Observability',

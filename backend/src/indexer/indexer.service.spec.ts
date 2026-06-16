@@ -117,7 +117,10 @@ describe('IndexerService', () => {
 
   it('invalidates claim summary cache after vote ingestion', async () => {
     const tx = {
-      vote: { upsert: jest.fn().mockResolvedValue(undefined) },
+      vote: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        upsert: jest.fn().mockResolvedValue(undefined),
+      },
       claim: { update: jest.fn().mockResolvedValue(undefined) },
     };
     const claimEvents = { publish: jest.fn().mockResolvedValue(undefined) };
@@ -128,6 +131,7 @@ describe('IndexerService', () => {
       {} as never,
       makeConfig(),
       undefined,
+      undefined,
       claimEvents as never,
       undefined,
       claimSummaryCache as never,
@@ -136,7 +140,10 @@ describe('IndexerService', () => {
 
     await (service as unknown as {
       handleVoteCast: (
-        tx: typeof tx,
+        tx: {
+          vote: { findUnique: jest.Mock; upsert: jest.Mock };
+          claim: { update: jest.Mock };
+        },
         topics: unknown[],
         data: Record<string, unknown>,
         event: { ledger: number; txHash: string },

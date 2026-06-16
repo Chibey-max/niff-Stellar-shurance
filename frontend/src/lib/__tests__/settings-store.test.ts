@@ -39,7 +39,11 @@ describe('loadSettings', () => {
       rpcWarningAcknowledged: false,
       telemetryEnabled: false,
       displayCurrency: 'EUR',
-      notifications: { renewalRemindersEnabled: false, claimUpdatesEnabled: true },
+      notifications: {
+        renewalRemindersEnabled: false,
+        claimUpdatesEnabled: true,
+        voteRemindersEnabled: true,
+      },
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stored))
     const s = loadSettings()
@@ -64,7 +68,11 @@ describe('saveSettings', () => {
     const s = loadSettings()
     saveSettings({
       ...s,
-      notifications: { renewalRemindersEnabled: false, claimUpdatesEnabled: false },
+      notifications: {
+        renewalRemindersEnabled: false,
+        claimUpdatesEnabled: false,
+        voteRemindersEnabled: false,
+      },
     })
     const loaded = loadSettings()
     expect(loaded.notifications.renewalRemindersEnabled).toBe(false)

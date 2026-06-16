@@ -37,11 +37,7 @@ fn token_holder_can_create_proposal() {
 #[test]
 fn quorum_applies_parameter_change() {
     let (env, client, holder_a, holder_b, _) = setup();
-    let id = client.create_proposal(
-        &holder_a,
-        &String::from_str(&env, "quorum_bps"),
-        &7_000u32,
-    );
+    let id = client.create_proposal(&holder_a, &String::from_str(&env, "quorum_bps"), &7_000u32);
 
     client.vote_proposal(&holder_a, &id, &true);
     assert_eq!(client.get_quorum_bps(), 5_000u32);
@@ -74,11 +70,7 @@ fn non_token_holder_cannot_create_proposal() {
     let outsider = Address::generate(&env);
 
     assert!(client
-        .try_create_proposal(
-            &outsider,
-            &String::from_str(&env, "quorum_bps"),
-            &6_000u32,
-        )
+        .try_create_proposal(&outsider, &String::from_str(&env, "quorum_bps"), &6_000u32,)
         .is_err());
 }
 

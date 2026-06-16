@@ -14,6 +14,8 @@ import { QueueMonitorService } from '../queues/queue-monitor.service';
 import { BullBoardMiddleware } from './bull-board.middleware';
 import { MetricsModule } from '../metrics/metrics.module';
 import { CacheModule } from '../cache/cache.module';
+import { RpcModule } from '../rpc/rpc.module';
+import { AdminStatsService } from './admin-stats.service';
 
 @Module({
   imports: [
@@ -23,6 +25,7 @@ import { CacheModule } from '../cache/cache.module';
     RateLimitModule,
     MetricsModule,
     CacheModule,
+    RpcModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -30,7 +33,14 @@ import { CacheModule } from '../cache/cache.module';
     }),
   ],
   controllers: [AdminController],
-  providers: [AdminService, AdminPoliciesService, AdminTenantsService, AuditService, QueueMonitorService],
+  providers: [
+    AdminService,
+    AdminPoliciesService,
+    AdminTenantsService,
+    AdminStatsService,
+    AuditService,
+    QueueMonitorService,
+  ],
   exports: [AuditService, QueueMonitorService],
 })
 export class AdminModule implements NestModule {

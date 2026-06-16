@@ -9,7 +9,10 @@ use niffyinsure::{
     validate::Error,
     NiffyInsureClient,
 };
-use soroban_sdk::{testutils::{Address as _, Ledger}, token, Address, Env, String};
+use soroban_sdk::{
+    testutils::{Address as _, Ledger},
+    token, Address, Env, String,
+};
 
 fn setup() -> (Env, NiffyInsureClient<'static>, Address, Address) {
     let env = Env::default();
@@ -32,7 +35,12 @@ fn mint(env: &Env, token: &Address, to: &Address, amount: i128) {
 }
 
 fn approve(env: &Env, token: &Address, owner: &Address, spender: &Address, amount: i128) {
-    token::Client::new(env, token).approve(owner, spender, &amount, &(env.ledger().sequence() + 10_000));
+    token::Client::new(env, token).approve(
+        owner,
+        spender,
+        &amount,
+        &(env.ledger().sequence() + 10_000),
+    );
 }
 
 #[test]
@@ -80,7 +88,14 @@ fn expired_delegation_rejects_fraud_score_setting() {
     let oracle = Address::generate(&env);
     let holder = Address::generate(&env);
     seed(&client, &holder, 1_000_000, 10_000);
-    let cid = client.file_claim(&holder, &1u32, &100_000i128, &String::from_str(&env, "x"), &common::empty_evidence(&env), &None);
+    let cid = client.file_claim(
+        &holder,
+        &1u32,
+        &100_000i128,
+        &String::from_str(&env, "x"),
+        &common::empty_evidence(&env),
+        &None,
+    );
 
     let perms = DelegationPermissions {
         can_set_fraud_score: true,
@@ -104,7 +119,14 @@ fn wrong_permission_on_delegation_rejects_fraud_score_setter() {
     let oracle = Address::generate(&env);
     let holder = Address::generate(&env);
     seed(&client, &holder, 1_000_000, 10_000);
-    let cid = client.file_claim(&holder, &1u32, &100_000i128, &String::from_str(&env, "x"), &common::empty_evidence(&env), &None);
+    let cid = client.file_claim(
+        &holder,
+        &1u32,
+        &100_000i128,
+        &String::from_str(&env, "x"),
+        &common::empty_evidence(&env),
+        &None,
+    );
 
     let perms = DelegationPermissions {
         can_set_fraud_score: false,
@@ -127,7 +149,14 @@ fn revoked_delegation_rejects_fraud_score_setter() {
     let oracle = Address::generate(&env);
     let holder = Address::generate(&env);
     seed(&client, &holder, 1_000_000, 10_000);
-    let cid = client.file_claim(&holder, &1u32, &100_000i128, &String::from_str(&env, "x"), &common::empty_evidence(&env), &None);
+    let cid = client.file_claim(
+        &holder,
+        &1u32,
+        &100_000i128,
+        &String::from_str(&env, "x"),
+        &common::empty_evidence(&env),
+        &None,
+    );
 
     let perms = DelegationPermissions {
         can_set_fraud_score: true,
@@ -152,7 +181,14 @@ fn primary_treasury_succeeds_without_reinsurance() {
     seed(&client, &v1, 1_000_000, 10_000);
 
     mint(&env, &token, &client.address, &200_000i128);
-    let cid = client.file_claim(&v1, &1u32, &50_000i128, &String::from_str(&env, "x"), &common::empty_evidence(&env), &None);
+    let cid = client.file_claim(
+        &v1,
+        &1u32,
+        &50_000i128,
+        &String::from_str(&env, "x"),
+        &common::empty_evidence(&env),
+        &None,
+    );
 
     client.vote_on_claim(&v1, &cid, &VoteOption::Approve);
     let events_debug = soroban_sdk::testutils::arbitrary::std::format!("{:?}", env.events().all());
@@ -172,7 +208,14 @@ fn insufficient_primary_uses_reinsurance_drawdown() {
     approve(&env, &token, &reinsurance, &client.address, &100_000i128);
     client.admin_set_reinsurance_contract(&reinsurance);
 
-    let cid = client.file_claim(&v1, &1u32, &50_000i128, &String::from_str(&env, "x"), &common::empty_evidence(&env), &None);
+    let cid = client.file_claim(
+        &v1,
+        &1u32,
+        &50_000i128,
+        &String::from_str(&env, "x"),
+        &common::empty_evidence(&env),
+        &None,
+    );
     client.vote_on_claim(&v1, &cid, &VoteOption::Approve);
 
     let events_debug = soroban_sdk::testutils::arbitrary::std::format!("{:?}", env.events().all());
@@ -191,7 +234,14 @@ fn no_reinsurance_reverts_when_primary_insufficient() {
     seed(&client, &v2, 1_000_000, 10_000);
 
     mint(&env, &token, &client.address, &30_000i128);
-    let cid = client.file_claim(&v1, &1u32, &50_000i128, &String::from_str(&env, "x"), &common::empty_evidence(&env), &None);
+    let cid = client.file_claim(
+        &v1,
+        &1u32,
+        &50_000i128,
+        &String::from_str(&env, "x"),
+        &common::empty_evidence(&env),
+        &None,
+    );
 
     let err = client
         .try_vote_on_claim(&v1, &cid, &VoteOption::Approve)

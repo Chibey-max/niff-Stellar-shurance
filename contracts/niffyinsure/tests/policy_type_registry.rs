@@ -8,7 +8,9 @@
 #![cfg(test)]
 
 use niffyinsure::{
-    types::{AgeBand, CoverageType, InitiatePolicyOptions, PolicyType, PolicyTypeConfig, RegionTier},
+    types::{
+        AgeBand, CoverageType, InitiatePolicyOptions, PolicyType, PolicyTypeConfig, RegionTier,
+    },
     NiffyInsureClient, PolicyError,
 };
 use soroban_sdk::{

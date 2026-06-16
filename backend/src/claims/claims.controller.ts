@@ -12,8 +12,6 @@ import {
   Body,
   Res,
   BadRequestException,
-  NotFoundException,
-  ForbiddenException,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';

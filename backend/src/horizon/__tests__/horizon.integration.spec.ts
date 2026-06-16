@@ -11,6 +11,7 @@ import request from "supertest";
 import { ConfigModule } from "@nestjs/config";
 import { HorizonModule } from "../horizon.module";
 import { RedisService } from "../../cache/redis.service";
+import { PrismaService } from "../../prisma/prisma.service";
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -141,6 +142,8 @@ describe("HorizonController (integration)", () => {
     })
       .overrideProvider(RedisService)
       .useValue(redisMock)
+      .overrideProvider(PrismaService)
+      .useValue({ rawEvent: { findMany: jest.fn().mockResolvedValue([]) } })
       .compile();
 
     app = moduleRef.createNestApplication();
@@ -317,6 +320,8 @@ describe("HorizonController (integration)", () => {
     })
       .overrideProvider(RedisService)
       .useValue(redisMock)
+      .overrideProvider(PrismaService)
+      .useValue({ rawEvent: { findMany: jest.fn().mockResolvedValue([]) } })
       .compile();
 
     const testApp = moduleRef.createNestApplication();
@@ -369,6 +374,8 @@ describe("HorizonController (integration)", () => {
     })
       .overrideProvider(RedisService)
       .useValue(redisMock)
+      .overrideProvider(PrismaService)
+      .useValue({ rawEvent: { findMany: jest.fn().mockResolvedValue([]) } })
       .compile();
 
     const testApp = moduleRef.createNestApplication();

@@ -24,9 +24,11 @@ interface MulterFile {
 }
 import { ClaimsController } from '../claims.controller';
 import { EvidenceUploadService } from '../services/evidence-upload.service';
+import { EvidenceProxyService } from '../services/evidence-proxy.service';
 import { ClaimsService } from '../claims.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RateLimitGuard } from '../../rate-limit/rate-limit.guard';
+import { ClaimRateLimitGuard } from '../../rate-limit/claim-rate-limit.guard';
 import { EVIDENCE_MAX_BYTES_DEFAULT } from '../dto/evidence-upload.dto';
 
 // ── Minimal valid file buffers ────────────────────────────────────────────
@@ -84,6 +86,7 @@ async function buildApp(jwtGuardOverride?: GuardOverride): Promise<INestApplicat
     controllers: [ClaimsController],
     providers: [
       { provide: EvidenceUploadService, useValue: mockEvidenceUploadService },
+      { provide: EvidenceProxyService, useValue: {} },
       { provide: ClaimsService, useValue: mockClaimsService },
     ],
   });
@@ -92,6 +95,7 @@ async function buildApp(jwtGuardOverride?: GuardOverride): Promise<INestApplicat
     builder.overrideGuard(JwtAuthGuard).useValue(jwtGuardOverride);
   }
   builder.overrideGuard(RateLimitGuard).useValue({ canActivate: () => true });
+  builder.overrideGuard(ClaimRateLimitGuard).useValue({ canActivate: () => true });
 
   const module: TestingModule = await builder.compile();
   const app = module.createNestApplication();

@@ -48,7 +48,8 @@ fn setup() -> TestEnv<'static> {
 }
 
 fn seed_policy(t: &TestEnv, holder: &Address) -> niffyinsure::types::Policy {
-    t.client.test_seed_policy(holder, &1u32, &1_000_000_000i128, &999_999u32)
+    t.client
+        .test_seed_policy(holder, &1u32, &1_000_000_000i128, &999_999u32)
 }
 
 fn seed_approved_claim(

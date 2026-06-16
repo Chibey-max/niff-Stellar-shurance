@@ -103,5 +103,10 @@ pub(crate) fn transfer_from_reinsurance(
         panic!("token not allowlisted");
     }
     let client = token::TokenClient::new(env, asset);
-    client.transfer_from(&env.current_contract_address(), reinsurance, recipient, &amount);
+    client.transfer_from(
+        &env.current_contract_address(),
+        reinsurance,
+        recipient,
+        &amount,
+    );
 }

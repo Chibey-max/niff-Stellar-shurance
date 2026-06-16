@@ -106,7 +106,10 @@ fn claim_within_cooldown_reverts() {
     // Second claim on same policy should be blocked
     let result = file(&client, &holder, 1, &env);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), niffyinsure::validate::Error::CooldownActive);
+    assert_eq!(
+        result.unwrap_err(),
+        niffyinsure::validate::Error::CooldownActive
+    );
 }
 
 // ── Post-cooldown success ─────────────────────────────────────────────────────

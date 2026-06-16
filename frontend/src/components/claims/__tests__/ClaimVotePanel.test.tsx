@@ -8,7 +8,7 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 import { ClaimVotePanel } from '../claim-vote-panel'
-import type { Claim, Eligibility, VoteOption } from '@/lib/schemas/vote'
+import type { Claim, Eligibility } from '@/lib/schemas/vote'
 import { useWallet } from '@/features/wallet'
 import { useLatestLedger } from '@/hooks/use-latest-ledger'
 import { fetchClaim, fetchEligibility, simulateVote, submitVote } from '@/lib/api/vote'

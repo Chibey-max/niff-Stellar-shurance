@@ -258,8 +258,6 @@ export function ClaimVotePanel({ claimId }: ClaimVotePanelProps) {
     voteOpen &&
     !terminal
 
-  const canVote = hasVoteActions && submitState === 'idle'
-
   const disabledTooltip = !walletAddress
     ? 'Connect your wallet to vote'
     : !eligible

@@ -130,8 +130,7 @@ fn late_reveal_reverts_with_reveal_phase_ended() {
     // Advance past reveal phase end.
     env.ledger().with_mut(|l| l.sequence_number = 301);
 
-    let err = reveal_vote(&env, &voter, claim_id, vote, s)
-        .expect_err("late reveal should revert");
+    let err = reveal_vote(&env, &voter, claim_id, vote, s).expect_err("late reveal should revert");
     assert_eq!(err, niffyinsure::validate::Error::RevealPhaseEnded);
 }
 
@@ -151,8 +150,8 @@ fn double_reveal_reverts_with_duplicate_vote() {
 
     reveal_vote(&env, &voter, claim_id, vote.clone(), s.clone()).unwrap();
 
-    let err = reveal_vote(&env, &voter, claim_id, vote, s)
-        .expect_err("double reveal should revert");
+    let err =
+        reveal_vote(&env, &voter, claim_id, vote, s).expect_err("double reveal should revert");
     assert_eq!(err, niffyinsure::validate::Error::DuplicateVote);
 }
 

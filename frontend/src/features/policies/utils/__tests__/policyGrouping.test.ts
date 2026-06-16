@@ -4,7 +4,10 @@
 import { classifyPolicyExpiryGroup, groupPoliciesByExpiry, EXPIRING_SOON_LEDGER_THRESHOLD } from '../policyGrouping';
 import type { PolicyDto } from '@/features/policies/api';
 
-type PartialPolicy = Partial<PolicyDto>;
+type PolicyOverrides = Partial<Omit<PolicyDto, 'coverage_summary' | 'expiry_countdown'>> & {
+  coverage_summary?: Partial<PolicyDto['coverage_summary']>;
+  expiry_countdown?: Partial<PolicyDto['expiry_countdown']>;
+};
 
 const basePolicy: PolicyDto = {
   holder: 'GTEST1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890ABCDE',
@@ -29,7 +32,7 @@ const basePolicy: PolicyDto = {
   _link: '/policies/1',
 };
 
-function makePolicy(overrides: Partial<PolicyDto> = {}): PolicyDto {
+function makePolicy(overrides: PolicyOverrides = {}): PolicyDto {
   return {
     ...basePolicy,
     ...overrides,

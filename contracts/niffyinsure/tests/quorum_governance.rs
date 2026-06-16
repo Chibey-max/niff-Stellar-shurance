@@ -223,7 +223,11 @@ fn zero_eligible_voters_deadline_rejects_without_panic() {
     // Instead: seed one holder, file, then check eligible_voter_count.
     // To get 0 eligible we use admin_set_open_claim_count trick — but the
     // simplest approach is to verify the formula directly via required_cast.
-    assert_eq!(required_cast(0, DEFAULT_QUORUM_BPS), 0, "zero eligible ⇒ R = 0");
+    assert_eq!(
+        required_cast(0, DEFAULT_QUORUM_BPS),
+        0,
+        "zero eligible ⇒ R = 0"
+    );
     // And verify finalization with 0 eligible stored on a real claim:
     // seed one voter, file, then advance past deadline with 0 votes cast.
     // eligible_voter_count = 1 here, but cast = 0 < R = 1 ⇒ rejected.

@@ -25,7 +25,9 @@ mod oracle;
 #[cfg(feature = "experimental")]
 pub use oracle::*;
 
-use soroban_sdk::{contract, contractevent, contractimpl, panic_with_error, Address, Env, String, Vec};
+use soroban_sdk::{
+    contract, contractevent, contractimpl, panic_with_error, Address, Env, String, Vec,
+};
 
 #[contract]
 pub struct NiffyInsure;
@@ -296,6 +298,12 @@ impl NiffyInsure {
             40 => validate::Error::VotingWindowStillOpen,
             41 => validate::Error::NotEligibleVoter,
             42 => validate::Error::RateLimitExceeded,
+            43 => validate::Error::InvalidEvidenceUrl,
+            44 => validate::Error::ClaimEvidenceUpdateNotAllowed,
+            45 => validate::Error::EvidenceCountOutOfBounds,
+            46 => validate::Error::ZeroTreasuryDeposit,
+            47 => validate::Error::UnauthorizedTreasuryDepositor,
+            48 => validate::Error::PayoutRecipientContractNotAllowlisted,
             49 => validate::Error::VotingDurationOutOfBounds,
             50 => validate::Error::PolicyBatchTooLarge,
             51 => validate::Error::VoterSnapshotExpired,
@@ -652,11 +660,7 @@ impl NiffyInsure {
     /// Preconditions: status == Rejected, within appeal_open_deadline_ledger, appeals_count < 1.
     /// Transitions: Rejected → UnderAppeal. Resets vote counts, sets appeal_deadline_ledger,
     /// snapshots a fresh voter electorate, and requires elevated quorum.
-    pub fn open_appeal(
-        env: Env,
-        claimant: Address,
-        claim_id: u64,
-    ) -> Result<(), validate::Error> {
+    pub fn open_appeal(env: Env, claimant: Address, claim_id: u64) -> Result<(), validate::Error> {
         claimant.require_auth();
         claim::open_appeal(&env, &claimant, claim_id)
     }
@@ -673,10 +677,7 @@ impl NiffyInsure {
     }
 
     /// Permissionless keeper: finalize an appeal after its voting deadline passes.
-    pub fn finalize_appeal(
-        env: Env,
-        claim_id: u64,
-    ) -> Result<types::ClaimStatus, validate::Error> {
+    pub fn finalize_appeal(env: Env, claim_id: u64) -> Result<types::ClaimStatus, validate::Error> {
         claim::finalize_appeal(&env, claim_id)
     }
 
@@ -805,11 +806,7 @@ impl NiffyInsure {
     // ── Region registry ───────────────────────────────────────────────────────
 
     /// Admin-only: upsert a region code in the registry.
-    pub fn admin_set_region(
-        env: Env,
-        code: String,
-        config: types::RegionConfig,
-    ) {
+    pub fn admin_set_region(env: Env, code: String, config: types::RegionConfig) {
         let _admin = admin::require_admin(&env);
         storage::bump_instance(&env);
         let mut registry = storage::get_region_registry(&env);
@@ -827,10 +824,7 @@ impl NiffyInsure {
     }
 
     /// Read-only: get a region config by code.
-    pub fn get_region_config(
-        env: Env,
-        code: String,
-    ) -> Option<types::RegionConfig> {
+    pub fn get_region_config(env: Env, code: String) -> Option<types::RegionConfig> {
         storage::get_region_config(&env, &code)
     }
 
@@ -1394,10 +1388,7 @@ impl NiffyInsure {
 
     /// Read the asset-specific multiplier table for `asset`.
     /// Returns `None` when no asset-specific table has been set (global default applies).
-    pub fn get_asset_premium_table(
-        env: Env,
-        asset: Address,
-    ) -> Option<types::MultiplierTable> {
+    pub fn get_asset_premium_table(env: Env, asset: Address) -> Option<types::MultiplierTable> {
         storage::get_asset_premium_table(&env, &asset)
     }
 
@@ -1648,7 +1639,10 @@ impl NiffyInsure {
     }
 
     /// Admin: set the fraud score threshold above which elevated quorum applies.
-    pub fn admin_set_fraud_score_threshold(env: Env, threshold: u32) -> Result<(), validate::Error> {
+    pub fn admin_set_fraud_score_threshold(
+        env: Env,
+        threshold: u32,
+    ) -> Result<(), validate::Error> {
         let _admin = admin::require_admin(&env);
         if threshold > 100 {
             return Err(validate::Error::SafetyScoreOutOfRange);
@@ -1682,7 +1676,10 @@ impl NiffyInsure {
         storage::set_allowed_asset_config(
             &env,
             &asset,
-            &types::AllowedAssetConfig { min_claim_amount, max_claim_amount },
+            &types::AllowedAssetConfig {
+                min_claim_amount,
+                max_claim_amount,
+            },
         );
         AssetClaimBoundsUpdated {
             asset,
@@ -1771,7 +1768,11 @@ impl NiffyInsure {
         let _admin = admin::require_admin(&env);
         storage::bump_instance(&env);
         storage::set_whitelisted(&env, &holder, true);
-        WhitelistAddressUpdated { holder, allowed: true }.publish(&env);
+        WhitelistAddressUpdated {
+            holder,
+            allowed: true,
+        }
+        .publish(&env);
     }
 
     /// Admin: remove an address from the KYC whitelist.
@@ -1779,7 +1780,11 @@ impl NiffyInsure {
         let _admin = admin::require_admin(&env);
         storage::bump_instance(&env);
         storage::set_whitelisted(&env, &holder, false);
-        WhitelistAddressUpdated { holder, allowed: false }.publish(&env);
+        WhitelistAddressUpdated {
+            holder,
+            allowed: false,
+        }
+        .publish(&env);
     }
 
     /// Read-only: whether `holder` is on the KYC whitelist.
@@ -1937,9 +1942,7 @@ impl NiffyInsure {
         storage::set_open_claim(&env, &holder, policy_id, open_claim_count > 0);
         admin::emit_admin_action(&env, &admin, "admin_set_open_claim_count");
     }
-}
-            44 => validate::Error::ClaimEvidenceUpdateNotAllowed,
-            45 => validate::Error::EvidenceCountOutOfBounds,
+
     /// Claimant-only: replace evidence before voting starts.
     pub fn add_claim_evidence(
         env: Env,
@@ -1950,6 +1953,7 @@ impl NiffyInsure {
         claimant.require_auth();
         claim::add_claim_evidence(&env, &claimant, claim_id, &new_evidence)
     }
+}
 
 #[contractevent(topics = ["niffyinsure", "treasury_depositor_updated"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1970,6 +1974,8 @@ struct TreasuryDeposited {
     pub at_ledger: u32,
 }
 
+#[contractimpl]
+impl NiffyInsure {
     /// Read-only: whether a depositor is authorized to inject treasury capital.
     pub fn is_authorized_depositor(env: Env, depositor: Address) -> bool {
         storage::is_authorized_depositor(&env, &depositor)
@@ -2035,3 +2041,4 @@ struct TreasuryDeposited {
         storage::set_allowed_payout_recipient(&env, &recipient, allowed);
         Ok(())
     }
+}

@@ -13,12 +13,12 @@
  */
 
 import { ConfigService } from '@nestjs/config';
-import { NotificationsService } from '../notifications.service';
+import { NotificationsService } from './notifications.service';
 import {
   InMemoryNotificationPreferencesRepository,
   NOTIFICATION_PREFERENCES_REPOSITORY,
-} from '../notification-preferences.repository';
-import { PolicyExpiryEmailTemplate, PolicyExpiryPushTemplate } from '../notification.templates';
+} from './notification-preferences.repository';
+import { PolicyExpiryEmailTemplate, PolicyExpiryPushTemplate } from './notification.templates';
 
 // ── Mock nodemailer ───────────────────────────────────────────────────────────
 
@@ -50,7 +50,7 @@ function makeService(pushWebhookUrl?: string): NotificationsService {
 
   const service = new NotificationsService(configService, repo);
   // Inject repo via the DI token manually (constructor injection in tests).
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   (service as any)[NOTIFICATION_PREFERENCES_REPOSITORY] = repo;
   return service;
 }
@@ -114,8 +114,10 @@ describe('PolicyExpiryPushTemplate', () => {
 
 describe('NotificationsService.sendPolicyExpiryNotifications', () => {
   beforeEach(() => {
-    mockSendMail.mockClear();
-    mockFetch.mockClear();
+    mockSendMail.mockReset();
+    mockSendMail.mockResolvedValue({ messageId: 'test-id' });
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue({ ok: true, status: 200 });
   });
 
   it('sends email and push for opted-in holder', async () => {
@@ -171,7 +173,7 @@ describe('NotificationsService.sendPolicyExpiryNotifications', () => {
   });
 
   it('returns failed status when email provider throws', async () => {
-    mockSendMail.mockRejectedValueOnce(new Error('SMTP error'));
+    mockSendMail.mockRejectedValue(new Error('SMTP error'));
     const service = makeService(undefined);
     const result = await service.sendPolicyExpiryNotifications(
       { ...baseCtx, holderPublicKey: OPT_IN_HOLDER },
@@ -181,7 +183,7 @@ describe('NotificationsService.sendPolicyExpiryNotifications', () => {
   });
 
   it('returns failed status when push webhook returns non-ok', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
+    mockFetch.mockResolvedValue({ ok: false, status: 500 });
     const service = makeService('https://push.example.com/webhook');
     const result = await service.sendPolicyExpiryNotifications(
       { ...baseCtx, holderPublicKey: OPT_IN_HOLDER },

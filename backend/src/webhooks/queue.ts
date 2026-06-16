@@ -153,6 +153,7 @@ export async function getDeadLetterJobs(limit = 100): Promise<DeliveryRecord[]> 
   const failed = await webhookQueue.getFailed(0, limit);
   return failed
     .filter((job) => job.attemptsMade >= MAX_WEBHOOK_ATTEMPTS)
+    .slice(0, limit)
     .map((job) => ({
       jobId: String(job.id),
       provider: job.data.provider,

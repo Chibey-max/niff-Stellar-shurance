@@ -579,12 +579,7 @@ pub struct AssetPremiumTableSet {
     pub cleared: u32,
 }
 
-pub fn emit_asset_premium_table_set(
-    env: &Env,
-    asset: &Address,
-    table_version: u32,
-    cleared: bool,
-) {
+pub fn emit_asset_premium_table_set(env: &Env, asset: &Address, table_version: u32, cleared: bool) {
     AssetPremiumTableSet {
         asset: asset.clone(),
         version: EVENT_SCHEMA_VERSION,

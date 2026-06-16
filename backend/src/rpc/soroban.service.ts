@@ -89,7 +89,7 @@ interface PendingSubmission {
 @Injectable()
 export class SorobanService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SorobanService.name);
-  private circuitBreaker!: CircuitBreaker;
+  private circuitBreaker!: CircuitBreaker<[() => Promise<unknown>], unknown>;
   private pendingSubmissions: PendingSubmission[] = [];
   private readonly cbThreshold: number;
   private readonly cbResetMs: number;
@@ -114,13 +114,13 @@ export class SorobanService implements OnModuleInit, OnModuleDestroy {
 
   private initCircuitBreaker(): void {
     this.circuitBreaker = new CircuitBreaker(
-      async (fn: () => Promise<any>) => fn(),
+      async (fn: () => Promise<unknown>) => fn(),
       {
         timeout: 30_000,
         maxFailures: this.cbThreshold,
         resetTimeout: this.cbResetMs,
         name: 'SorobanRpcCircuitBreaker',
-      } as any,
+      },
     );
 
     this.circuitBreaker.on('open', () => {
@@ -661,8 +661,9 @@ export class SorobanService implements OnModuleInit, OnModuleDestroy {
         return {
           status: 'PENDING',
           hash: '',
-          errorResult: 'Transaction queued for retry when RPC recovers',
-        } as any;
+          latestLedger: 0,
+          latestLedgerCloseTime: 0,
+        };
       }
       throw err;
     }

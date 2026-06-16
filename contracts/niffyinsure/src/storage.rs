@@ -347,7 +347,9 @@ pub fn get_protocol_fee_bps(env: &Env) -> u32 {
 }
 
 pub fn set_fee_recipient(env: &Env, recipient: &Address) {
-    env.storage().instance().set(&DataKey::FeeRecipient, recipient);
+    env.storage()
+        .instance()
+        .set(&DataKey::FeeRecipient, recipient);
 }
 
 pub fn get_fee_recipient(env: &Env) -> Address {
@@ -631,7 +633,9 @@ pub fn set_proposal(env: &Env, proposal: &crate::governance::Proposal) {
 }
 
 pub fn get_proposal(env: &Env, proposal_id: u64) -> Option<crate::governance::Proposal> {
-    env.storage().persistent().get(&DataKey::Proposal(proposal_id))
+    env.storage()
+        .persistent()
+        .get(&DataKey::Proposal(proposal_id))
 }
 
 pub fn remove_proposal(env: &Env, proposal_id: u64) {
@@ -1072,9 +1076,7 @@ pub fn get_min_evidence_count(env: &Env) -> u32 {
 
 /// Set admin-configurable maximum vote weight cap for governance token voting.
 pub fn set_max_weight_cap(env: &Env, cap: i128) {
-    env.storage()
-        .instance()
-        .set(&DataKey::MaxWeightCap, &cap);
+    env.storage().instance().set(&DataKey::MaxWeightCap, &cap);
 }
 
 /// Current max weight cap. Falls back to `i128::MAX` (uncapped) when unset.
@@ -1091,11 +1093,9 @@ pub fn get_max_weight_cap(env: &Env) -> i128 {
 pub fn set_last_claim_resolved_ledger(env: &Env, holder: &Address, policy_id: u32, ledger: u32) {
     let key = DataKey::LastClaimResolvedLedger(holder.clone(), policy_id);
     env.storage().persistent().set(&key, &ledger);
-    env.storage().persistent().extend_ttl(
-        &key,
-        PERSISTENT_TTL_THRESHOLD,
-        PERSISTENT_TTL_EXTEND_TO,
-    );
+    env.storage()
+        .persistent()
+        .extend_ttl(&key, PERSISTENT_TTL_THRESHOLD, PERSISTENT_TTL_EXTEND_TO);
 }
 
 /// Last resolved claim ledger for `(holder, policy_id)`. Returns `None` if no claim has been resolved.
@@ -1580,11 +1580,7 @@ pub fn get_asset_premium_table(
 }
 
 /// Persist an asset-specific multiplier table.
-pub fn set_asset_premium_table(
-    env: &Env,
-    asset: &Address,
-    table: &crate::types::MultiplierTable,
-) {
+pub fn set_asset_premium_table(env: &Env, asset: &Address, table: &crate::types::MultiplierTable) {
     env.storage()
         .instance()
         .set(&DataKey::AssetPremiumTable(asset.clone()), table);
@@ -1680,13 +1676,20 @@ pub fn get_elevated_quorum_bps(env: &Env) -> u32 {
 
 // ── Issue #587: Asset-specific claim amount bounds ────────────────────────────
 
-pub fn set_allowed_asset_config(env: &Env, asset: &Address, config: &crate::types::AllowedAssetConfig) {
+pub fn set_allowed_asset_config(
+    env: &Env,
+    asset: &Address,
+    config: &crate::types::AllowedAssetConfig,
+) {
     env.storage()
         .instance()
         .set(&DataKey::AllowedAssetConfig(asset.clone()), config);
 }
 
-pub fn get_allowed_asset_config(env: &Env, asset: &Address) -> Option<crate::types::AllowedAssetConfig> {
+pub fn get_allowed_asset_config(
+    env: &Env,
+    asset: &Address,
+) -> Option<crate::types::AllowedAssetConfig> {
     env.storage()
         .instance()
         .get(&DataKey::AllowedAssetConfig(asset.clone()))
@@ -1725,7 +1728,9 @@ pub fn get_reinsurance_contract(env: &Env) -> Option<Address> {
 }
 
 pub fn clear_reinsurance_contract(env: &Env) {
-    env.storage().instance().remove(&DataKey::ReinsuranceContract);
+    env.storage()
+        .instance()
+        .remove(&DataKey::ReinsuranceContract);
 }
 
 // ── Appeal mechanism — voter snapshot (persistent) ────────────────────────────
